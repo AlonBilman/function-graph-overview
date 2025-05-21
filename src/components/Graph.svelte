@@ -129,6 +129,7 @@ function onClick(event: MouseEvent) {
   }
   dispatch("node-clicked", {
     node: target.id,
+    withControl : event.ctrlKey,
     offset: getNodeOffset(target.id),
   });
 }

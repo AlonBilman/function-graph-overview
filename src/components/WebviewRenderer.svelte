@@ -172,6 +172,7 @@ function onZoomClick(
   }
   dispatch("node-clicked", {
     node: target.id,
+    withControl: event.ctrlKey,
     offset: getNodeOffset(target.id),
   });
 }

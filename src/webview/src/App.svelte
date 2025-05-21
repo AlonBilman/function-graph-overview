@@ -14,7 +14,7 @@ declare global {
        * Calls going from the WebView to the JetBrains extension
        */
       ToExtension?: {
-        navigateTo: (offset: string) => void;
+        navigateTo: (offset: string, withControl: boolean) => void;
       };
       /**
        * Functions the extension can use to call into the WebView
@@ -94,7 +94,7 @@ declare global {
     private state: State = {
       config: { simplify: true, flatSwitch: true, highlight: true },
     };
-    private navigateToHandlers: ((offset: number) => void)[] = [];
+    private navigateToHandlers: ((offset: number, withControl: boolean) => void)[] = [];
 
     public update(state: Partial<State>): void {
       const config = Object.assign(this.state.config, state.config);
@@ -108,13 +108,13 @@ declare global {
       setCode(this.state.code, this.state.offset, this.state.language);
     }
 
-    public onNavigateTo(callback: (offset: number) => void): void {
+    public onNavigateTo(callback: (offset: number, withControl: boolean) => void): void {
       this.navigateToHandlers.push(callback);
     }
 
-    public navigateTo(offset: number): void {
+    public navigateTo(offset: number, withControl: boolean): void {
       for (const handler of this.navigateToHandlers) {
-        handler(offset);
+        handler(offset, withControl);
       }
     }
   }
@@ -159,8 +159,8 @@ declare global {
       }
     });
 
-    stateHandler.onNavigateTo((offset: number) => {
-      vscode?.postMessage<NavigateTo>({ tag: "navigateTo", offset: offset });
+    stateHandler.onNavigateTo((offset: number, withControl : boolean) => {
+      vscode?.postMessage<NavigateTo>({ tag: "navigateTo", offset: offset, withControl: withControl });
     });
   }
 
@@ -190,8 +190,8 @@ declare global {
       setColors,
     };
 
-    stateHandler.onNavigateTo((offset: number) => {
-      window.JetBrains?.ToExtension?.navigateTo(offset.toString());
+    stateHandler.onNavigateTo((offset: number, withControl :boolean) => {
+      window.JetBrains?.ToExtension?.navigateTo(offset.toString(), withControl);
     });
   }
 
@@ -200,7 +200,7 @@ declare global {
   initJetBrains(stateHandler);
 
   function navigateTo(
-    e: CustomEvent<{ node: string; offset: number | null }>,
+    e: CustomEvent<{ node: string; offset: number | null; withControl: boolean }>,
   ): void {
     if (e.detail.offset === null) {
       // We don't know the offset, so we can't navigate to it.
@@ -208,7 +208,8 @@ declare global {
       //       We changed the representation of nodes, so it shouldn't.
       return;
     }
-    stateHandler.navigateTo(e.detail.offset);
+
+    stateHandler.navigateTo(e.detail.offset, e.detail.withControl);
   }
 </script>
 
