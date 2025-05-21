@@ -322,6 +322,8 @@ function renderNode(
     nodeClass = "yield";
   } else if (nodeAttrs.type === "EXIT_PROCESS") {
     nodeClass = "terminate";
+  } else if (nodeAttrs.type === "FUNCTION_CALL") { 
+    nodeClass = "functionCall";
   } else if (graph.degree(node) === 0) {
     // If we only have a single node, we draw it as a default block.
     nodeClass = "default";

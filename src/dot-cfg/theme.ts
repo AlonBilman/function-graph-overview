@@ -12,6 +12,7 @@ const NodeClasses = [
   "yield",
   "throw",
   "terminate",
+  "functionCall",
 ] as const;
 export type NodeClass = (typeof NodeClasses)[number];
 export function isNodeClass(name: string): name is NodeClass {
@@ -62,6 +63,10 @@ const nodeStyles: Record<NodeClass, NodeAttributesObject> = {
     shape: "doublecircle",
     class: "terminate",
   },
+  functionCall: {
+    shape: "ellipse",
+    class: "functionCall",
+  }
 };
 
 export function getNodeStyle(
