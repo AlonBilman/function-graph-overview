@@ -7,6 +7,7 @@ import type { ColorList } from "../control-flow/colors.ts";
 export type NavigateTo = {
   tag: "navigateTo";
   offset: number;
+  withControl: boolean;
 };
 
 export type UpdateCode = {

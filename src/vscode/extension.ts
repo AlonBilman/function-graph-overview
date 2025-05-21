@@ -133,7 +133,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const provider = new OverviewViewProvider(
     context.extensionUri,
     isThemeDark(),
-    { navigateTo: ({ offset }) => onNodeClick(offset) },
+    { navigateTo: ({ offset , withControl }) => onNodeClick(offset,withControl) },
   );
 
   context.subscriptions.push(
@@ -149,9 +149,18 @@ export async function activate(context: vscode.ExtensionContext) {
     'Congratulations, your extension "function-graph-overview" is now active!',
   );
 
-  function onNodeClick(offset: number): void {
+  function onNodeClick(offset: number, withControl: boolean): void {
     moveCursorAndReveal(offset);
     focusEditor();
+    if (withControl) {
+      console.log("Control pressed");
+      try {
+        vscode.commands.executeCommand('editor.action.revealDefinition');
+      }
+      catch {
+        console.error("Error executing command \"goToDeclaration\"");
+      }
+    }
   }
 
   context.subscriptions.push(
