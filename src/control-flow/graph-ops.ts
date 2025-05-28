@@ -104,10 +104,11 @@ export function simplifyCFG(cfg: CFG, mergeAttrs?: AttrMerger): CFG {
 
   const toCollapse: [string, string][] = graph
     .mapEdges((_edge, _attrs, source, target): [string, string] | null => {
-      if (graph.outDegree(source) === 1 && graph.inDegree(target) === 1) {
+      if (graph.outDegree(source) === 1 && graph.inDegree(target) === 1 && 
+      graph.inDegree(source) !== 0) {
         return [source, target];
       }
-      return null;
+      return null; 
     })
     .filter(Boolean) as [string, string][];
 
