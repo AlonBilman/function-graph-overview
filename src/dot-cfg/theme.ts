@@ -64,7 +64,8 @@ const nodeStyles: Record<NodeClass, NodeAttributesObject> = {
     class: "terminate",
   },
   functionCall: {
-    shape: "ellipse",
+    shape: "box",
+    style: "filled,bold,dashed",
     class: "functionCall",
   }
 };
