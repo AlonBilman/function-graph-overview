@@ -8,6 +8,7 @@ export type ColorList = [
   { name: "node.terminate"; hex: string },
   { name: "node.border"; hex: string },
   { name: "node.highlight"; hex: string },
+  {name: "node.functionCall"; hex: string },
   // Edge Colors
   { name: "edge.regular"; hex: string },
   { name: "edge.consequence"; hex: string },
@@ -34,6 +35,7 @@ const defaultColorList: ColorList = [
   { name: "node.terminate", hex: "#7256c6" },
   { name: "node.border", hex: "#000000" },
   { name: "node.highlight", hex: "#000000" },
+  { name: "node.functionCall", hex: "#c2185b" },
 
   // Edge Colors
   { name: "edge.regular", hex: "#0000ff" },
@@ -60,6 +62,7 @@ const darkColorList: ColorList = [
   { name: "node.terminate", hex: "#7256c6" },
   { name: "node.border", hex: "#000000" },
   { name: "node.highlight", hex: "#dddddd" },
+  { name: "node.functionCall", hex: "#ff80b5" },
   { name: "edge.regular", hex: "#2592a1" },
   { name: "edge.consequence", hex: "#4ce34c" },
   { name: "edge.alternative", hex: "#ff3e3e" },

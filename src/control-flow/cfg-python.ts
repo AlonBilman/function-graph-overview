@@ -72,6 +72,16 @@ function defaultProcessStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
   return { entry: newNode, exit: newNode };
 }
 
+function processFunctionCallStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
+  const hasFunctionCall = matchExistsIn(syntax, "(call) @call");
+  if (hasFunctionCall) {
+    const callNode = ctx.builder.addNode("FUNCTION_CALL", syntax.text, syntax.startIndex);
+    ctx.link.syntaxToNode(syntax, callNode);
+    return { entry: callNode, exit: callNode };
+  }
+  return defaultProcessStatement(syntax, ctx);
+}
+
 function processExpressionStatement(
   syntax: SyntaxNode,
   ctx: Context,
@@ -86,7 +96,7 @@ function processExpressionStatement(
       return callBlock;
     }
   }
-  return defaultProcessStatement(syntax, ctx);
+  return processFunctionCallStatement(syntax, ctx);
 }
 
 function processAssertStatement(
