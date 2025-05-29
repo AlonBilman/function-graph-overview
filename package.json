@@ -115,6 +115,12 @@
           "default": "true",
           "description": "Flatten switches, so that all cases are direct descendants of the root."
         },
+        "functionGraphOverview.simplifyLevel": {
+          "type": "string",
+          "enum": ["full", "semi", "none"],
+          "default": "full",
+          "description": "Level of simplification to apply to the graph. 'full' applies maximum simplification, 'semi' applies partial simplification, and 'none' shows the complete graph without simplification."
+        },
         "functionGraphOverview.highlightCurrentNode": {
           "type": "boolean",
           "default": "true",

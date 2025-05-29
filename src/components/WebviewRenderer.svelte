@@ -24,6 +24,7 @@ interface Props {
   codeAndOffset?: CodeAndOffset | null;
   verbose?: boolean;
   simplify?: boolean;
+  simplifyLevel?: "full" | "semi" | "none";
   trim?: boolean;
   flatSwitch?: boolean;
   highlight?: boolean;
@@ -35,6 +36,7 @@ let {
   codeAndOffset = null,
   verbose = false,
   simplify = true,
+  simplifyLevel = "full",
   trim = true,
   flatSwitch = true,
   highlight = true,
@@ -205,6 +207,7 @@ const panAfterRender: Action = () => {
       codeAndOffset,
       {
         simplify,
+        simplifyLevel,
         verbose,
         trim,
         flatSwitch,

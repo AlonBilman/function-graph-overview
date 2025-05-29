@@ -289,6 +289,7 @@ export class BlockHandler {
 export function mergeNodeAttrs(
   from: GraphNode,
   into: GraphNode,
+  simplifyLevel: "full" | "semi" | "none" = "full",
 ): GraphNode | null {
   if (from.cluster !== into.cluster) {
     return null;
@@ -298,6 +299,9 @@ export function mergeNodeAttrs(
     "THROW",
     "EXIT_PROCESS",
   ]);
+  if (simplifyLevel === "semi") {
+    noMergeTypes.add("FUNCTION_CALL");
+  }
   if (noMergeTypes.has(from.type) || noMergeTypes.has(into.type)) {
     return null;
   }

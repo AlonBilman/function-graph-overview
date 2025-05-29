@@ -17,6 +17,7 @@ import { memoizeFunction } from "./caching.ts";
 
 export interface RenderOptions {
   readonly simplify: boolean;
+  readonly simplifyLevel: "full" | "semi" | "none";
   readonly verbose: boolean;
   readonly trim: boolean;
   readonly flatSwitch: boolean;
@@ -107,7 +108,7 @@ export class Renderer {
       ? overlayBuilder.getAttrMerger(mergeNodeAttrs)
       : mergeNodeAttrs;
     if (this.options.simplify) {
-      cfg = simplifyCFG(cfg, nodeAttributeMerger);
+      cfg = simplifyCFG(cfg, nodeAttributeMerger, this.options.simplifyLevel);
     }
     cfg = remapNodeTargets(cfg);
 

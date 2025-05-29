@@ -26,6 +26,7 @@ export function distanceFromEntry(cfg: CFG): Map<string, number> {
 export type AttrMerger = (
   nodeAttrs: GraphNode,
   intoAttrs: GraphNode,
+  simplifyLevel: "full" | "semi" | "none"
 ) => GraphNode | null;
 
 /**
@@ -42,11 +43,13 @@ function collapseNode(
   node: string,
   into: string,
   mergeAttrs?: AttrMerger,
+  simplifyLevel: "full" | "semi" | "none" = "full",
 ): void {
   if (mergeAttrs) {
     const attrs = mergeAttrs(
       graph.getNodeAttributes(node),
       graph.getNodeAttributes(into),
+      simplifyLevel
     );
     if (attrs === null) {
       // We can't merge the nodes, so we bail.
@@ -99,7 +102,7 @@ function collapseNode(
  * ```
  *
  */
-export function simplifyCFG(cfg: CFG, mergeAttrs?: AttrMerger): CFG {
+export function simplifyCFG(cfg: CFG, mergeAttrs?: AttrMerger, simplifyLevel: "full" | "semi" | "none" = "full"): CFG {
   const graph = cfg.graph.copy();
 
   const toCollapse: [string, string][] = graph
@@ -120,7 +123,7 @@ export function simplifyCFG(cfg: CFG, mergeAttrs?: AttrMerger): CFG {
 
   try {
     for (const [source, target] of toCollapse) {
-      collapseNode(graph, source, target, mergeAttrs);
+      collapseNode(graph, source, target, mergeAttrs,simplifyLevel);
       if (entry === source) {
         // Keep track of the entry node!
         entry = target;
