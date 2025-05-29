@@ -22,7 +22,7 @@ declare global {
       ToWebview?: {
         setColors: (colors: string) => void;
         setCode: (code: string, offset: number, language: string) => void;
-        setSimplify: (simplify: boolean) => void;
+        setSimplificationLevel: (simplificationLevel: "none" | "light" | "full") => void;
         setFlatSwitch: (flatSwitch: boolean) => void;
         setHighlight: (highlight: boolean) => void;
       };
@@ -49,7 +49,7 @@ declare global {
   const vscode =
     typeof acquireVsCodeApi !== "undefined" ? acquireVsCodeApi() : undefined;
 
-  let simplify = $state(true);
+  let simplificationLevel = $state<"none" | "light" | "full">("full");
   let flatSwitch = $state(true);
   let highlight = $state(true);
 
@@ -78,7 +78,7 @@ declare global {
   // TODO: The StateHandler is overkill, we should remove it.
   //       All we need for now is the navigation handlers.
   type Config = {
-    simplify?: boolean;
+    simplificationLevel?: "none" | "light" | "full";
     flatSwitch?: boolean;
     highlight?: boolean;
     colorList?: ColorList;
@@ -92,7 +92,7 @@ declare global {
 
   class StateHandler {
     private state: State = {
-      config: { simplify: true, flatSwitch: true, highlight: true },
+      config: { simplificationLevel: "full", flatSwitch: true, highlight: true },
     };
     private navigateToHandlers: ((offset: number, withControl: boolean) => void)[] = [];
 
@@ -101,7 +101,7 @@ declare global {
       Object.assign(this.state, state);
       this.state.config = config;
 
-      simplify = Boolean(this.state.config.simplify);
+      simplificationLevel = this.state.config.simplificationLevel;
       flatSwitch = Boolean(this.state.config.flatSwitch);
       highlight = Boolean(this.state.config.highlight);
 
@@ -150,7 +150,7 @@ declare global {
         }
         case "updateSettings":
           flatSwitch = message.flatSwitch;
-          simplify = message.simplify;
+          simplificationLevel = message.simplificationLevel;
           highlight = message.highlightCurrentNode;
           colorList = message.colorList;
           document.body.style.backgroundColor = colorList.find(
@@ -180,8 +180,8 @@ declare global {
     // Set callbacks for use by the JetBrains extension
     window.JetBrains ??= {};
     window.JetBrains.ToWebview = {
-      setSimplify: (flag: boolean) =>
-        stateHandler.update({ config: { simplify: flag } }),
+      setSimplificationLevel: (simplificationLevel: "none" | "light" | "full") =>
+        stateHandler.update({ config: { simplificationLevel } }),
       setFlatSwitch: (flag: boolean) =>
         stateHandler.update({ config: { flatSwitch: flag } }),
       setHighlight: (flag: boolean) =>
@@ -217,7 +217,7 @@ declare global {
   <WebviewRenderer
     {codeAndOffset}
     {colorList}
-    {simplify}
+    {simplificationLevel}
     {flatSwitch}
     {highlight}
     on:node-clicked={navigateTo}

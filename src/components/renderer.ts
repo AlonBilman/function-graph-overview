@@ -16,7 +16,7 @@ import { svgFromString } from "../control-flow/svgFromString.ts";
 import { memoizeFunction } from "./caching.ts";
 
 export interface RenderOptions {
-  readonly simplify: boolean;
+  readonly simplificationLevel: "none" | "light" | "full";
   readonly verbose: boolean;
   readonly trim: boolean;
   readonly flatSwitch: boolean;
@@ -104,10 +104,10 @@ export class Renderer {
     if (!cfg) throw new Error("Failed generating CFG for function");
     if (this.options.trim) cfg = trimFor(cfg);
     const nodeAttributeMerger: AttrMerger = this.options.showRegions
-      ? overlayBuilder.getAttrMerger(mergeNodeAttrs)
-      : mergeNodeAttrs;
-    if (this.options.simplify) {
-      cfg = simplifyCFG(cfg, nodeAttributeMerger);
+    ? overlayBuilder.getAttrMerger((from, into) => mergeNodeAttrs(from, into, this.options.simplificationLevel))
+    : (from, into) => mergeNodeAttrs(from, into, this.options.simplificationLevel);
+    if (this.options.simplificationLevel) {
+      cfg = simplifyCFG(cfg, nodeAttributeMerger, this.options.simplificationLevel);
     }
     cfg = remapNodeTargets(cfg);
 

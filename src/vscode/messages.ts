@@ -20,7 +20,7 @@ export type UpdateCode = {
 export type UpdateSettings = {
   tag: "updateSettings";
   flatSwitch: boolean;
-  simplify: boolean;
+  simplificationLevel: "none" | "light" | "full";
   highlightCurrentNode: boolean;
   colorList: ColorList;
 };

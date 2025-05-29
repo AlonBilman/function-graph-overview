@@ -105,10 +105,11 @@
     "configuration": {
       "title": "Function Graph Overview",
       "properties": {
-        "functionGraphOverview.simplify": {
-          "type": "boolean",
-          "default": "true",
-          "description": "Simplify the graph by collapsing trivial paths."
+        "functionGraphOverview.simplificationLevel": {
+          "type": "string",
+          "enum": ["none", "light", "full"],
+          "default": "full",
+          "description": "Simplify the graph by collapsing trivial paths for different levels. Levels: none (no simplification), light (simplify but keep function calls separate), full (complete simplification)"
         },
         "functionGraphOverview.flatSwitch": {
           "type": "boolean",

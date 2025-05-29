@@ -286,18 +286,29 @@ export class BlockHandler {
   }
 }
 
-export function mergeNodeAttrs(
-  from: GraphNode,
-  into: GraphNode,
-): GraphNode | null {
-  if (from.cluster !== into.cluster) {
-    return null;
-  }
-  const noMergeTypes: Set<NodeType> = new Set([
+export function getNoMergeTypes(simplificationLevel: "none" | "light" | "full"): Set<NodeType> {
+  const baseTypes = new Set<NodeType>([
     "YIELD",
     "THROW",
     "EXIT_PROCESS",
   ]);
+  
+  if (simplificationLevel === "light") {
+    baseTypes.add("FUNCTION_CALL");
+  }
+  
+  return baseTypes;
+}
+
+export function mergeNodeAttrs(
+  from: GraphNode,
+  into: GraphNode,
+  simplificationLevel: "none" | "light" | "full" = "full"
+): GraphNode | null {
+  if (from.cluster !== into.cluster) {
+    return null;
+  }
+  const noMergeTypes = getNoMergeTypes(simplificationLevel);
   if (noMergeTypes.has(from.type) || noMergeTypes.has(into.type)) {
     return null;
   }

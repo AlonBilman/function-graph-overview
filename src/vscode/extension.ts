@@ -60,7 +60,7 @@ function isThemeDark(): boolean {
 
 type Settings = {
   flatSwitch: boolean;
-  simplify: boolean;
+  simplificationLevel: "none" | "light" | "full";
   highlightCurrentNode: boolean;
   colorList: ColorList;
 };
@@ -93,7 +93,7 @@ function loadSettings(): Settings {
 
   return {
     flatSwitch: config.get("flatSwitch") ?? true,
-    simplify: config.get("simplify") ?? true,
+    simplificationLevel: config.get("simplificationLevel") ?? "full",
     highlightCurrentNode: config.get("highlightCurrentNode") ?? true,
     colorList: colorList,
   };
@@ -171,7 +171,7 @@ export async function activate(context: vscode.ExtensionContext) {
           provider.postMessage<UpdateSettings>({
             tag: "updateSettings",
             flatSwitch: settings.flatSwitch,
-            simplify: settings.simplify,
+            simplificationLevel: settings.simplificationLevel,
             highlightCurrentNode: settings.highlightCurrentNode,
             colorList: settings.colorList,
           });
@@ -186,7 +186,7 @@ export async function activate(context: vscode.ExtensionContext) {
       provider.postMessage<UpdateSettings>({
         tag: "updateSettings",
         flatSwitch: settings.flatSwitch,
-        simplify: settings.simplify,
+        simplificationLevel: settings.simplificationLevel,
         highlightCurrentNode: settings.highlightCurrentNode,
         colorList: settings.colorList,
       });

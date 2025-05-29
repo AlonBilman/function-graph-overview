@@ -23,7 +23,7 @@ interface Props {
   colorList?: ColorList;
   codeAndOffset?: CodeAndOffset | null;
   verbose?: boolean;
-  simplify?: boolean;
+  simplificationLevel?: "none" | "light" | "full";
   trim?: boolean;
   flatSwitch?: boolean;
   highlight?: boolean;
@@ -34,7 +34,7 @@ let {
   colorList = getLightColorList(),
   codeAndOffset = null,
   verbose = false,
-  simplify = true,
+  simplificationLevel = "full",
   trim = true,
   flatSwitch = true,
   highlight = true,
@@ -193,6 +193,11 @@ const panAfterRender: Action = () => {
 };
 </script>
 <div class="editor-controls">
+  <select bind:value={simplificationLevel}>
+    <option value="none">No Simplification</option>
+    <option value="light">Light Simplification</option>
+    <option value="full">Full Simplification</option>
+  </select>
   <input type="checkbox" id="panzoom" bind:checked={enableZoom}/> <label for="panzoom">Pan & Zoom</label>
 </div>
 <PanzoomComp bind:this={pzComp} onclick={onZoomClick} disabled={!enableZoom}>
@@ -204,7 +209,7 @@ const panAfterRender: Action = () => {
     {#await asyncRenderWrapper(
       codeAndOffset,
       {
-        simplify,
+        simplificationLevel,
         verbose,
         trim,
         flatSwitch,

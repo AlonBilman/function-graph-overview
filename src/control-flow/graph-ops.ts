@@ -99,7 +99,11 @@ function collapseNode(
  * ```
  *
  */
-export function simplifyCFG(cfg: CFG, mergeAttrs?: AttrMerger): CFG {
+export function simplifyCFG(cfg: CFG, mergeAttrs?: AttrMerger,simplificationLevel: "none" | "light" | "full" = "full"): CFG {
+  if (simplificationLevel === "none") {
+    return cfg;
+  }
+  
   const graph = cfg.graph.copy();
 
   const toCollapse: [string, string][] = graph
