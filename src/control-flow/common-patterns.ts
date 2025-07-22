@@ -1,9 +1,10 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { Match } from "./block-matcher.ts";
-import type { BasicBlock } from "./cfg-defs.ts";
+import type { BasicBlock, NodeType } from "./cfg-defs.ts";
 import type { Context } from "./generic-cfg-builder.ts";
 import { treeSitterNoNullNodes } from "./hacks.ts";
 import { last, pairwise, zip } from "./itertools.ts";
+import { Query } from "web-tree-sitter";
 
 export function cStyleIfProcessor(
   queryString: string,
@@ -318,27 +319,29 @@ export function cStyleWhileProcessor(): (
 
     const match = ctx.matcher.match(whileSyntax, queryString);
 
-    const matchFunctions = ctx.matcher.match(whileSyntax, queryStringForFunctions);
-
-    if (matchFunctions) {
-      console.log("something something: ", matchFunctions);
-    }
-
     const condSyntax = match.requireSyntax("cond");
     const bodySyntax = match.requireSyntax("body");
 
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
-    const exitNode = ctx.builder.addNode(
-     
+    const language = condSyntax.tree.language;
+    const query = new Query(language, queryStringForFunctions);
+    const matches = query.matches(condSyntax);
+
+    const allCallNodes: SyntaxNode[] = [];
+    for (const match of matches) {
+      for (const capture of match.captures) {
+        if (capture.name === "call") {
+          allCallNodes.push(capture.node);
+        }
+      }
     }
 
-    const condSyntax = match.requireSyntax("cond");
-    const bodySyntax = match.requireSyntax("body");
-
-    const condBlock = match.getBlock(condSyntax);
-    const bodyBlock = match.getBlock(bodySyntax);
+    //console.log("Number of function calls in condition:", removeDuplicatesByText(allCallNodes));
+    let type : NodeType = "FOR_EXIT";
+    if(removeDuplicatesByText(allCallNodes).length > 0) {
+       type = "FUNCTION_CALL";}
 
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",
@@ -368,6 +371,21 @@ export function cStyleWhileProcessor(): (
 
     return ctx.matcher.update({ entry: condBlock.entry, exit: exitNode });
   };
+}
+
+function removeDuplicatesByText(nodes: SyntaxNode[]): SyntaxNode[] {
+  const seen = new Set<string>();
+  const result: SyntaxNode[] = [];
+
+  for (const node of nodes) {
+    const text = node.text;
+    if (!seen.has(text)) {
+      seen.add(text);
+      result.push(node);
+    }
+  }
+
+  return result;
 }
 
 export function cStyleDoWhileProcessor(): (
