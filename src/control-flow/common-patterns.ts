@@ -304,7 +304,35 @@ export function cStyleWhileProcessor(): (
       body: (_) @body
       ) @while
   `;
+    const queryStringForFunctions = `
+      (parenthesized_expression
+        (call_expression) @call)
+
+      (parenthesized_expression
+        (binary_expression
+          (call_expression) @call))
+
+      (binary_expression
+        (call_expression) @call)
+    `;
+
     const match = ctx.matcher.match(whileSyntax, queryString);
+
+    const matchFunctions = ctx.matcher.match(whileSyntax, queryStringForFunctions);
+
+    if (matchFunctions) {
+      console.log("something something: ", matchFunctions);
+    }
+
+    const condSyntax = match.requireSyntax("cond");
+    const bodySyntax = match.requireSyntax("body");
+
+    const condBlock = match.getBlock(condSyntax);
+    const bodyBlock = match.getBlock(bodySyntax);
+
+    const exitNode = ctx.builder.addNode(
+     
+    }
 
     const condSyntax = match.requireSyntax("cond");
     const bodySyntax = match.requireSyntax("body");
