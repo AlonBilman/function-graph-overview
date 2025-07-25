@@ -1,10 +1,51 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import type { Match } from "./block-matcher.ts";
-import type { BasicBlock, NodeType } from "./cfg-defs.ts";
+import type { BasicBlock } from "./cfg-defs.ts";
 import type { Context } from "./generic-cfg-builder.ts";
 import { treeSitterNoNullNodes } from "./hacks.ts";
 import { last, pairwise, zip } from "./itertools.ts";
 import { Query } from "web-tree-sitter";
+
+  function extractFunctionNamesAndLocation(
+    func: SyntaxNode,
+    query: string,
+    tag: string
+  ): { name: string; row: number; column: number }[] | undefined {
+    const queryObj = new Query(func.tree.language, query);
+
+    const mapped = queryObj
+      .captures(func)
+      .filter(capture => capture.name === tag)
+      .map(capture => ({
+        name: capture.node.text,
+        row: capture.node.startPosition.row + 1,
+        column: capture.node.startPosition.column,
+      }));
+
+    //removing duplicate by (name + row + column)
+    const seen = new Set<string>();
+    const unique = mapped.filter(({ name, row, column }) => {
+      const key = `${name}-${row}-${column}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    return unique;
+  }
+
+    //Only c Style for now.....
+    const functionCallCaptureQuery = ` 
+      (parenthesized_expression
+        (call_expression) @call)
+
+      (parenthesized_expression
+        (binary_expression
+          (call_expression) @call))
+
+      (binary_expression
+        (call_expression) @call)
+    `;
 
 export function cStyleIfProcessor(
   queryString: string,
@@ -23,7 +64,18 @@ export function cStyleIfProcessor(
       thenBlock: ifMatch.getBlock(ifMatch.requireSyntax("then")),
       elseBlock: ifMatch.getBlock(ifMatch.getSyntax("else-body")),
     }));
+    //MINE
+    const allCondNodes: SyntaxNode[] = allIfs.map(match => match.requireSyntax("cond"));
+    console.log("-------------------"); 
+    console.log("IF CAPTURE");
+    allCondNodes.forEach((condSyntax) => {
+      const functionCapture = extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call");
+      functionCapture?.forEach((capture) => {
+        console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
+      });
 
+    });
+    //MINE
     for (const [ifMatch, { condBlock }] of zip(allIfs, blocks)) {
       ctx.link.syntaxToNode(ifMatch.requireSyntax("if"), condBlock.entry);
       ctx.link.offsetToSyntax(
@@ -185,6 +237,15 @@ export function cStyleForStatementProcessor(
     const updateBlock = match.getBlock(updateSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
+    //MINE
+    const functionCapture = extractFunctionNamesAndLocation(forNode, functionCallCaptureQuery, "call");
+    console.log("-------------------");
+    console.log("FOR LOOP CAPTURE");
+    functionCapture?.forEach((capture) => {
+      console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
+    });
+    //MINE
+
     const entryNode = ctx.builder.addNode(
       "EMPTY",
       "loop head",
@@ -305,43 +366,23 @@ export function cStyleWhileProcessor(): (
       body: (_) @body
       ) @while
   `;
-    const queryStringForFunctions = `
-      (parenthesized_expression
-        (call_expression) @call)
-
-      (parenthesized_expression
-        (binary_expression
-          (call_expression) @call))
-
-      (binary_expression
-        (call_expression) @call)
-    `;
-
+    
     const match = ctx.matcher.match(whileSyntax, queryString);
-
+  
     const condSyntax = match.requireSyntax("cond");
     const bodySyntax = match.requireSyntax("body");
-
+  
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
-
-    const language = condSyntax.tree.language;
-    const query = new Query(language, queryStringForFunctions);
-    const matches = query.matches(condSyntax);
-
-    const allCallNodes: SyntaxNode[] = [];
-    for (const match of matches) {
-      for (const capture of match.captures) {
-        if (capture.name === "call") {
-          allCallNodes.push(capture.node);
-        }
-      }
-    }
-
-    //console.log("Number of function calls in condition:", removeDuplicatesByText(allCallNodes));
-    let type : NodeType = "FOR_EXIT";
-    if(removeDuplicatesByText(allCallNodes).length > 0) {
-       type = "FUNCTION_CALL";}
+    //MINE
+    const functionCapture = extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call");
+    console.log("-------------------");
+    console.log("WHILE CAPTURE");
+    functionCapture?.forEach((capture) => {
+      console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
+    });
+    //MINE
+  
 
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",
@@ -373,21 +414,6 @@ export function cStyleWhileProcessor(): (
   };
 }
 
-function removeDuplicatesByText(nodes: SyntaxNode[]): SyntaxNode[] {
-  const seen = new Set<string>();
-  const result: SyntaxNode[] = [];
-
-  for (const node of nodes) {
-    const text = node.text;
-    if (!seen.has(text)) {
-      seen.add(text);
-      result.push(node);
-    }
-  }
-
-  return result;
-}
-
 export function cStyleDoWhileProcessor(): (
   doSyntax: SyntaxNode,
   ctx: Context,
@@ -407,6 +433,15 @@ export function cStyleDoWhileProcessor(): (
 
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
+
+     //MINE
+    const functionCapture = extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call");
+    console.log("-------------------");
+    console.log("DO WHILE CAPTURE");
+    functionCapture?.forEach((capture) => {
+      console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
+    });
+    //MINE
 
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",
