@@ -34,10 +34,19 @@ import { Query } from "web-tree-sitter";
     return unique;
   }
 
+  //Tags the condition node if it contains a function call.
+  function tagCondNodeIfFuncCall(condSyntax: SyntaxNode | undefined, condBlock: BasicBlock | null, ctx: Context) {
+    const hasFunctionCall = condSyntax && (extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call") ?? []).length > 0;
+    if (hasFunctionCall && condBlock) {
+      // Paint the node to indicate it contains a function call.
+      ctx.builder.setDefault(condBlock.entry, { hasFunctionCall: true });
+    }
+  }
+
     //Only c Style for now.....
     const functionCallCaptureQuery = ` 
       (parenthesized_expression
-        (call_expression) @call)
+        (call_expression) @call) 
 
       (parenthesized_expression
         (binary_expression
@@ -64,18 +73,14 @@ export function cStyleIfProcessor(
       thenBlock: ifMatch.getBlock(ifMatch.requireSyntax("then")),
       elseBlock: ifMatch.getBlock(ifMatch.getSyntax("else-body")),
     }));
-    //MINE
+    
+    //Get all the cond nodes and check if there is a function call in any of them.
     const allCondNodes: SyntaxNode[] = allIfs.map(match => match.requireSyntax("cond"));
-    console.log("-------------------"); 
-    console.log("IF CAPTURE");
-    allCondNodes.forEach((condSyntax) => {
-      const functionCapture = extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call");
-      functionCapture?.forEach((capture) => {
-        console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
-      });
+    // Check if any of the condition nodes contain a function call.
+    const containsFunctionCall = allCondNodes.some(
+      node => (extractFunctionNamesAndLocation(node, functionCallCaptureQuery, "call") ?? []).length > 0
+      );
 
-    });
-    //MINE
     for (const [ifMatch, { condBlock }] of zip(allIfs, blocks)) {
       ctx.link.syntaxToNode(ifMatch.requireSyntax("if"), condBlock.entry);
       ctx.link.offsetToSyntax(
@@ -95,6 +100,7 @@ export function cStyleIfProcessor(
       "if-else head",
       ifSyntax.startIndex,
     );
+
     const mergeNode = ctx.builder.addNode(
       "MERGE",
       "if-else merge",
@@ -103,6 +109,9 @@ export function cStyleIfProcessor(
 
     // An ugly hack to make tsc not hate us.
     const firstBlock = blocks[0];
+    if(containsFunctionCall && firstBlock) 
+      ctx.builder.setDefault(firstBlock.condBlock.entry, { hasFunctionCall: true });
+    
     if (firstBlock?.condBlock.entry)
       ctx.builder.addEdge(headNode, firstBlock.condBlock.entry);
 
@@ -237,15 +246,8 @@ export function cStyleForStatementProcessor(
     const updateBlock = match.getBlock(updateSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
-    //MINE
-    const functionCapture = extractFunctionNamesAndLocation(forNode, functionCallCaptureQuery, "call");
-    console.log("-------------------");
-    console.log("FOR LOOP CAPTURE");
-    functionCapture?.forEach((capture) => {
-      console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
-    });
-    //MINE
-
+    tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
+  
     const entryNode = ctx.builder.addNode(
       "EMPTY",
       "loop head",
@@ -374,16 +376,9 @@ export function cStyleWhileProcessor(): (
   
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
-    //MINE
-    const functionCapture = extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call");
-    console.log("-------------------");
-    console.log("WHILE CAPTURE");
-    functionCapture?.forEach((capture) => {
-      console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
-    });
-    //MINE
-  
 
+    tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
+  
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",
       "loop exit",
@@ -434,14 +429,7 @@ export function cStyleDoWhileProcessor(): (
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
-     //MINE
-    const functionCapture = extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call");
-    console.log("-------------------");
-    console.log("DO WHILE CAPTURE");
-    functionCapture?.forEach((capture) => {
-      console.log(`Function: ${capture.name}, Row: ${capture.row}, Column: ${capture.column}`);
-    });
-    //MINE
+    tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
 
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",

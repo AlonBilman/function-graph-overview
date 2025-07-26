@@ -80,6 +80,8 @@ export interface GraphNode {
    * This is used for mapping between the graph and the code for navigation.
    */
   startOffset: number;
+  /** Visual annotation: true if the node's condition contains a function call. */
+  hasFunctionCall?: boolean;
 }
 
 export interface GraphEdge {

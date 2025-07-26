@@ -316,7 +316,9 @@ function renderNode(
   const nodeAttrs = graph.getNodeAttributes(node);
 
   let nodeClass: NodeClass = "default";
-  if (nodeAttrs.type === "THROW") {
+  if (nodeAttrs.hasFunctionCall) {
+    nodeClass = "functionCall";
+  } else if (nodeAttrs.type === "THROW") {
     nodeClass = "throw";
   } else if (nodeAttrs.type === "YIELD") {
     nodeClass = "yield";
