@@ -8,6 +8,7 @@ export type NavigateTo = {
   tag: "navigateTo";
   offset: number;
   withControl: boolean;
+  functionNames?: string[];
 };
 
 export type UpdateCode = {

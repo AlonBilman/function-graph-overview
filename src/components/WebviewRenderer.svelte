@@ -176,6 +176,8 @@ function onZoomClick(
     node: target.id,
     withControl: event.ctrlKey,
     offset: getNodeOffset(target.id),
+    //HERE! we need to pass the function names + there location! 
+    functionNames : ["1","2", "3","4","5"],
   });
 }
 

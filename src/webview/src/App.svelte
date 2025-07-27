@@ -94,7 +94,7 @@ declare global {
     private state: State = {
       config: { simplifyLevel: "full", flatSwitch: true, highlight: true },
     };
-    private navigateToHandlers: ((offset: number, withControl: boolean) => void)[] = [];
+    private navigateToHandlers: ((offset: number, withControl: boolean, functionNames?: string[]) => void)[] = [];
 
     public update(state: Partial<State>): void {
       const config = Object.assign(this.state.config, state.config);
@@ -108,13 +108,13 @@ declare global {
       setCode(this.state.code, this.state.offset, this.state.language);
     }
 
-    public onNavigateTo(callback: (offset: number, withControl: boolean) => void): void {
-      this.navigateToHandlers.push(callback);
+    public onNavigateTo(handler: (offset: number, withControl: boolean, functionNames?: string[]) => void): void {
+      this.navigateToHandlers.push(handler);
     }
 
-    public navigateTo(offset: number, withControl: boolean): void {
+    public navigateTo(offset: number, withControl: boolean, functionNames?: string[]): void {
       for (const handler of this.navigateToHandlers) {
-        handler(offset, withControl);
+        handler(offset, withControl, functionNames);
       }
     }
   }
@@ -159,8 +159,8 @@ declare global {
       }
     });
 
-    stateHandler.onNavigateTo((offset: number, withControl : boolean) => {
-      vscode?.postMessage<NavigateTo>({ tag: "navigateTo", offset: offset, withControl: withControl });
+    stateHandler.onNavigateTo((offset: number, withControl: boolean, functionNames?: string[]) => {
+      vscode?.postMessage<NavigateTo>({ tag: "navigateTo", offset: offset, withControl: withControl, functionNames });
     });
   }
 
@@ -200,7 +200,7 @@ declare global {
   initJetBrains(stateHandler);
 
   function navigateTo(
-    e: CustomEvent<{ node: string; offset: number | null; withControl: boolean }>,
+    e: CustomEvent<{ node: string; offset: number | null; withControl: boolean; functionNames?: string[] }>,
   ): void {
     if (e.detail.offset === null) {
       // We don't know the offset, so we can't navigate to it.
@@ -209,7 +209,7 @@ declare global {
       return;
     }
 
-    stateHandler.navigateTo(e.detail.offset, e.detail.withControl);
+    stateHandler.navigateTo(e.detail.offset, e.detail.withControl, e.detail.functionNames);
   }
 </script>
 

@@ -135,7 +135,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const provider = new OverviewViewProvider(
     context.extensionUri,
     isThemeDark(),
-    { navigateTo: ({ offset , withControl }) => onNodeClick(offset,withControl) },
+    { navigateTo: ({ offset, withControl, functionNames }) => onNodeClick(offset, withControl, functionNames) },
   );
 
   context.subscriptions.push(
@@ -151,17 +151,29 @@ export async function activate(context: vscode.ExtensionContext) {
     'Congratulations, your extension "function-graph-overview" is now active!',
   );
 
-  function onNodeClick(offset: number, withControl: boolean): void {
-    moveCursorAndReveal(offset);
-    focusEditor();
+  async function onNodeClick(offset: number, withControl: boolean, functionNames?: string[]): Promise<void> {
     if (withControl) {
-      console.log("Control pressed");
       try {
-        vscode.commands.executeCommand('editor.action.revealDefinition');
+        const selection = await vscode.window.showQuickPick(
+          functionNames && functionNames.length > 0 ? functionNames : ["No functions found"],
+          {
+            placeHolder: "What function do you want to go to?",
+            canPickMany: false
+          }
+        );
+        if (selection && selection !== "No functions found") {
+          moveCursorAndReveal(offset);
+          focusEditor();
+          // Optionally, add logic to jump to the selected function if you have its location
+        } else {
+          console.log("No selection made");
+        }
+      } catch (error) {
+        console.error("Error during QuickPick or command execution:", error);
       }
-      catch {
-        console.error("Error executing command \"goToDeclaration\"");
-      }
+    } else {
+      moveCursorAndReveal(offset);
+      focusEditor();
     }
   }
 
