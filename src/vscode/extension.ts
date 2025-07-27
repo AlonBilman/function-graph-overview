@@ -173,40 +173,39 @@ export async function activate(context: vscode.ExtensionContext) {
     if (withControl) {
       try {
           moveCursorAndReveal(offset);
+          if(functionNamesAndLocations && functionNamesAndLocations.length > 0) {
+            //Prepare QuickPick items with additional metadata (name, row, column) so we can
+            //access the full function info later after user selection, instead of parsing strings. 
+            const quickPickItems: FunctionPickItem[] = functionNamesAndLocations.map(fn => ({
+              label: fn.name,
+              description: `(row: ${fn.row}, col: ${fn.column})`,
+              name: fn.name,
+              row: fn.row,
+              column: fn.column
+            }));
+          
+          const selection = await vscode.window.showQuickPick( 
+            quickPickItems,
+            {   
+              placeHolder: "What function do you want to go to?",
+              canPickMany: false
+            }
+          );
 
-          if (!functionNamesAndLocations || functionNamesAndLocations.length === 0) {
-            return;
+          if (selection) {
+            // Ok! now the magic happens — let's jump to the function call and mimic F12.
+            jumpToCursor(selection.row, selection.column);
+            vscode.commands.executeCommand('editor.action.revealDefinition');
+          } else {
+            console.log("No selection made");
           }
-          //Prepare QuickPick items with additional metadata (name, row, column) so we can
-          //access the full function info later after user selection, instead of parsing strings. 
-          const quickPickItems: FunctionPickItem[] = functionNamesAndLocations.map(fn => ({
-            label: fn.name,
-            description: `(row: ${fn.row}, col: ${fn.column})`,
-            name: fn.name,
-            row: fn.row,
-            column: fn.column
-          }));
-        
-        const selection = await vscode.window.showQuickPick( 
-          quickPickItems,
-          {   
-            placeHolder: "What function do you want to go to?",
-            canPickMany: false
-          }
-        );
-
-        if (selection) {
           focusEditor();
-          //Ok now the magic happends. lets jump to the function call and mimic f12 
-          jumpToCursor(selection.row,selection.column);
-
-        } else {
-          console.log("No selection made");
         }
+       
       } catch (error) {
         console.error("Error during QuickPick or command execution:", error);
       }
-    } 
+    }
     else {
       moveCursorAndReveal(offset);
       focusEditor();
