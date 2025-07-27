@@ -11,9 +11,8 @@ import PanzoomComp from "./PanzoomComp.svelte";
 import { memoizeFunction } from "./caching.ts";
 import { type RenderOptions, Renderer } from "./renderer.ts";
 import { type Parsers, initialize as initializeUtils } from "./utils";
-
 type CodeAndOffset = { code: string; offset: number; language: Language };
-
+import { extractFunctionNamesAndLocation } from "../control-flow/common-patterns";
 let parsers: Parsers;
 let graphviz: Graphviz;
 let getNodeOffset: (nodeId: string) => number | undefined = () => undefined;
@@ -90,6 +89,8 @@ function trackFunctionChanges(functionSyntax: SyntaxNode, language: string) {
     pzComp.reset();
   }
 }
+//for testing only. should be removed!
+let functionNamesAndLocations: { name: string; row: number; column: number }[] = [];
 
 function renderCode(
   code: string,
@@ -107,6 +108,19 @@ function renderCode(
     throw new Error("No function found!");
   }
   trackFunctionChanges(functionSyntax, language);
+  //for testing only! should be removed!
+  functionNamesAndLocations =
+    extractFunctionNamesAndLocation(functionSyntax, ` 
+      (parenthesized_expression
+        (call_expression) @call) 
+
+      (parenthesized_expression
+        (binary_expression
+          (call_expression) @call))
+
+      (binary_expression
+        (call_expression) @call)
+    `, "call") ?? [];
 
   const renderer = getRenderer(options, colorList, graphviz);
   const renderResult = renderer.render(functionSyntax, language, cursorOffset);
@@ -177,7 +191,8 @@ function onZoomClick(
     withControl: event.ctrlKey,
     offset: getNodeOffset(target.id),
     //HERE! we need to pass the function names + there location! 
-    functionNames : ["1","2", "3","4","5"],
+    //This part is only for testing...
+    functionNamesAndLocations : functionNamesAndLocations
   });
 }
 

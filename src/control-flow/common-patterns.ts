@@ -6,7 +6,7 @@ import { treeSitterNoNullNodes } from "./hacks.ts";
 import { last, pairwise, zip } from "./itertools.ts";
 import { Query } from "web-tree-sitter";
 
-  function extractFunctionNamesAndLocation(
+  export function extractFunctionNamesAndLocation(
     func: SyntaxNode,
     query: string,
     tag: string
@@ -18,7 +18,8 @@ import { Query } from "web-tree-sitter";
       .filter(capture => capture.name === tag)
       .map(capture => ({
         name: capture.node.text,
-        row: capture.node.startPosition.row + 1,
+        //In order to match the vscode numbering (or the demo page numbering) Ive added +1
+        row: capture.node.startPosition.row + 1, 
         column: capture.node.startPosition.column,
       }));
 

@@ -14,6 +14,12 @@ import { OverviewViewProvider } from "./overview-view";
  */
 /* oxlint-disable eslint-plugin-unicorn(require-post-message-target-origin) */
 
+interface FunctionPickItem extends vscode.QuickPickItem {
+  name: string;
+  row: number;
+  column: number;
+}
+
 // ADD-LANGUAGES-HERE
 const languageMapping: { [key: string]: Language } = {
   c: "C",
@@ -135,7 +141,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const provider = new OverviewViewProvider(
     context.extensionUri,
     isThemeDark(),
-    { navigateTo: ({ offset, withControl, functionNames }) => onNodeClick(offset, withControl, functionNames) },
+    { navigateTo: ({ offset, withControl, functionNamesAndLocations }) => onNodeClick(offset, withControl, functionNamesAndLocations) },
   );
 
   context.subscriptions.push(
@@ -151,27 +157,57 @@ export async function activate(context: vscode.ExtensionContext) {
     'Congratulations, your extension "function-graph-overview" is now active!',
   );
 
-  async function onNodeClick(offset: number, withControl: boolean, functionNames?: string[]): Promise<void> {
+  function jumpToCursor(row: number, col: number): void {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+    // In order to match the VS Code API
+    // even though it doesnt exactly match the text editor's line numbers
+    row-=1;
+    const pos = new vscode.Position(row, col);
+    editor.selection = new vscode.Selection(pos, pos);
+    editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+  }
+
+  async function onNodeClick(offset: number, withControl: boolean, 
+    functionNamesAndLocations?: { name: string; row: number; column: number }[]): Promise<void> {
     if (withControl) {
       try {
-        const selection = await vscode.window.showQuickPick(
-          functionNames && functionNames.length > 0 ? functionNames : ["No functions found"],
-          {
+          moveCursorAndReveal(offset);
+
+          if (!functionNamesAndLocations || functionNamesAndLocations.length === 0) {
+            return;
+          }
+          //Prepare QuickPick items with additional metadata (name, row, column) so we can
+          //access the full function info later after user selection, instead of parsing strings. 
+          const quickPickItems: FunctionPickItem[] = functionNamesAndLocations.map(fn => ({
+            label: fn.name,
+            description: `(row: ${fn.row}, col: ${fn.column})`,
+            name: fn.name,
+            row: fn.row,
+            column: fn.column
+          }));
+        
+        const selection = await vscode.window.showQuickPick( 
+          quickPickItems,
+          {   
             placeHolder: "What function do you want to go to?",
             canPickMany: false
           }
         );
-        if (selection && selection !== "No functions found") {
-          moveCursorAndReveal(offset);
+
+        if (selection) {
           focusEditor();
-          // Optionally, add logic to jump to the selected function if you have its location
+          //Ok now the magic happends. lets jump to the function call and mimic f12 
+          jumpToCursor(selection.row,selection.column);
+
         } else {
           console.log("No selection made");
         }
       } catch (error) {
         console.error("Error during QuickPick or command execution:", error);
       }
-    } else {
+    } 
+    else {
       moveCursorAndReveal(offset);
       focusEditor();
     }

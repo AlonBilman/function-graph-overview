@@ -94,7 +94,8 @@ declare global {
     private state: State = {
       config: { simplifyLevel: "full", flatSwitch: true, highlight: true },
     };
-    private navigateToHandlers: ((offset: number, withControl: boolean, functionNames?: string[]) => void)[] = [];
+    private navigateToHandlers: ((offset: number, withControl: boolean, 
+    functionNamesAndLocations?: { name: string; row: number; column: number }[]) => void)[] = [];
 
     public update(state: Partial<State>): void {
       const config = Object.assign(this.state.config, state.config);
@@ -108,13 +109,13 @@ declare global {
       setCode(this.state.code, this.state.offset, this.state.language);
     }
 
-    public onNavigateTo(handler: (offset: number, withControl: boolean, functionNames?: string[]) => void): void {
+    public onNavigateTo(handler: (offset: number, withControl: boolean, functionNamesAndLocations?: { name: string; row: number; column: number }[]) => void): void {
       this.navigateToHandlers.push(handler);
     }
 
-    public navigateTo(offset: number, withControl: boolean, functionNames?: string[]): void {
+    public navigateTo(offset: number, withControl: boolean, functionNamesAndLocations?: { name: string; row: number; column: number }[]): void {
       for (const handler of this.navigateToHandlers) {
-        handler(offset, withControl, functionNames);
+        handler(offset, withControl, functionNamesAndLocations);
       }
     }
   }
@@ -159,8 +160,8 @@ declare global {
       }
     });
 
-    stateHandler.onNavigateTo((offset: number, withControl: boolean, functionNames?: string[]) => {
-      vscode?.postMessage<NavigateTo>({ tag: "navigateTo", offset: offset, withControl: withControl, functionNames });
+    stateHandler.onNavigateTo((offset: number, withControl: boolean, functionNamesAndLocations?: { name: string; row: number; column: number }[]) => {
+      vscode?.postMessage<NavigateTo>({ tag: "navigateTo", offset: offset, withControl: withControl, functionNamesAndLocations : functionNamesAndLocations });
     });
   }
 
@@ -200,7 +201,7 @@ declare global {
   initJetBrains(stateHandler);
 
   function navigateTo(
-    e: CustomEvent<{ node: string; offset: number | null; withControl: boolean; functionNames?: string[] }>,
+    e: CustomEvent<{ node: string; offset: number | null; withControl: boolean; functionNamesAndLocations?: { name: string; row: number; column: number }[] }>,
   ): void {
     if (e.detail.offset === null) {
       // We don't know the offset, so we can't navigate to it.
@@ -209,7 +210,7 @@ declare global {
       return;
     }
 
-    stateHandler.navigateTo(e.detail.offset, e.detail.withControl, e.detail.functionNames);
+    stateHandler.navigateTo(e.detail.offset, e.detail.withControl, e.detail.functionNamesAndLocations);
   }
 </script>
 
