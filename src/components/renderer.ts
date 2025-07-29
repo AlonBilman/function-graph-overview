@@ -47,8 +47,9 @@ export class Renderer {
     dot: string;
     getNodeOffset: (nodeId: string) => number | undefined;
     offsetToNode: (offset: number) => string;
+    nodeIdToSyntaxNode: Map<string, SyntaxNode>;
   } {
-    let { dot, svg, getNodeOffset, offsetToNode } = this.memoizedRenderStatic(
+    let { dot, svg, getNodeOffset, offsetToNode, nodeIdToSyntaxNode } = this.memoizedRenderStatic(
       functionSyntax,
       language,
     );
@@ -73,6 +74,7 @@ export class Renderer {
       dot,
       getNodeOffset: (nodeId: string) => getNodeOffset(nodeId) + baseOffset,
       offsetToNode: (offset: number) => offsetToNode(offset - baseOffset),
+      nodeIdToSyntaxNode,
     };
   }
 
@@ -112,6 +114,14 @@ export class Renderer {
     }
     cfg = remapNodeTargets(cfg);
 
+    // Build nodeIdToSyntaxNode map 
+    const nodeIdToSyntaxNode = new Map<string, SyntaxNode>();
+    if (builder && builder.nodeMapper && builder.nodeMapper.syntaxToNode) {
+      for (const [syntax, nodeId] of builder.nodeMapper.syntaxToNode.entries()) {
+        nodeIdToSyntaxNode.set(nodeId, syntax);
+      }
+    }
+
     // Render to DOT
     const dot = graphToDot(
       cfg,
@@ -136,13 +146,12 @@ export class Renderer {
     return {
       svg,
       dot,
-      // We must work with function-relative offsets, as we want to allow the function
-      // to move without changing.
       getNodeOffset: (nodeId: string) =>
         cfg.graph.getNodeAttribute(nodeId, "startOffset") -
         functionSyntax.startIndex,
       offsetToNode: (offset: number) =>
         cfg.offsetToNode.get(offset + functionSyntax.startIndex),
+      nodeIdToSyntaxNode,
     };
   }
 }

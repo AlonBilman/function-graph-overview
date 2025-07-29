@@ -18,6 +18,8 @@ let graphviz: Graphviz;
 let getNodeOffset: (nodeId: string) => number | undefined = () => undefined;
 let offsetToNode: (offset: number) => string | undefined = () => undefined;
 let svg: string;
+//Im not sure that I like this, but it works for now.
+let nodeIdToSyntaxNode: Map<string, SyntaxNode> = new Map();
 interface Props {
   colorList?: ColorList;
   codeAndOffset?: CodeAndOffset | null;
@@ -89,8 +91,6 @@ function trackFunctionChanges(functionSyntax: SyntaxNode, language: string) {
     pzComp.reset();
   }
 }
-//for testing only. should be removed!
-let functionNamesAndLocations: { name: string; row: number; column: number }[] = [];
 
 function renderCode(
   code: string,
@@ -108,24 +108,24 @@ function renderCode(
     throw new Error("No function found!");
   }
   trackFunctionChanges(functionSyntax, language);
-  //for testing only! should be removed!
-  functionNamesAndLocations =
-    extractFunctionNamesAndLocation(functionSyntax, ` 
-      (parenthesized_expression
-        (call_expression) @call) 
-
-      (parenthesized_expression
-        (binary_expression
-          (call_expression) @call))
-
-      (binary_expression
-        (call_expression) @call)
-    `, "call") ?? [];
 
   const renderer = getRenderer(options, colorList, graphviz);
   const renderResult = renderer.render(functionSyntax, language, cursorOffset);
-  getNodeOffset = renderResult.getNodeOffset;
-  offsetToNode = renderResult.offsetToNode;
+  getNodeOffset = (nodeId: string) => {
+    if (typeof renderResult.getNodeOffset === 'function') {
+      const val = renderResult.getNodeOffset(nodeId);
+      return val !== undefined ? val : undefined;
+    }
+    return undefined;
+  };
+  offsetToNode = (offset: number) => {
+    if (typeof renderResult.offsetToNode === 'function') {
+      const val = renderResult.offsetToNode(offset);
+      return val !== undefined ? val : undefined;
+    }
+    return undefined;
+  };
+  nodeIdToSyntaxNode = renderResult.nodeIdToSyntaxNode;
   return renderResult.svg;
 }
 
@@ -186,13 +186,29 @@ function onZoomClick(
   if (!target.classList.contains("node")) {
     return;
   }
+  //still, this is experimental and I need to find a better way to do this.
+  let functions: { name: string; row: number; column: number }[] = [];
+  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id)) {
+    const syntaxNode = nodeIdToSyntaxNode.get(target.id);
+    if (syntaxNode) {
+      functions = extractFunctionNamesAndLocation(syntaxNode, ` 
+        (parenthesized_expression
+          (call_expression) @call) 
+
+        (parenthesized_expression
+          (binary_expression
+            (call_expression) @call))
+
+        (binary_expression
+          (call_expression) @call)
+      `, "call") ?? [];
+    }
+  }
   dispatch("node-clicked", {
     node: target.id,
     withControl: event.ctrlKey,
-    offset: getNodeOffset(target.id),
-    //HERE! we need to pass the function names + there location! 
-    //This part is only for testing...
-    functionNamesAndLocations : functionNamesAndLocations
+    offset: getNodeOffset(target.id) ?? undefined,
+    functionNamesAndLocations: functions,
   });
 }
 
