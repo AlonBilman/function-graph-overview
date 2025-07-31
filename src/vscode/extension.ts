@@ -195,12 +195,15 @@ export async function activate(context: vscode.ExtensionContext) {
           if (selection) {
             // Ok! now the magic happens — let's jump to the function call and mimic F12.
             jumpToCursor(selection.row, selection.column);
-            vscode.commands.executeCommand('editor.action.revealDefinition');
+           
           } else {
-            console.log("No selection made");
+            vscode.window.showInformationMessage("No function selected.");
+            return;
           }
-          focusEditor();
+          
         }
+        vscode.commands.executeCommand('editor.action.revealDefinition');
+        focusEditor();
        
       } catch (error) {
         console.error("Error during QuickPick or command execution:", error);

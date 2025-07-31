@@ -202,6 +202,12 @@ function onZoomClick(
         (binary_expression
           (call_expression) @call)
       `, "call") ?? [];
+      if(!functions.length) {
+        functions = extractFunctionNamesAndLocation(syntaxNode, `
+        (call_expression) 
+          function: (identifier) @call
+        `, "call") ?? [];
+      }
     }
   }
   dispatch("node-clicked", {
