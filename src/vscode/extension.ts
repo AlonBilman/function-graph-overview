@@ -64,13 +64,12 @@ function isThemeDark(): boolean {
   return theme.kind === vscode.ColorThemeKind.Dark;
 }
 
-type SimplifyLevel = "full" | "semi" | "none";
 
 type Settings = {
   flatSwitch: boolean;
-  simplifyLevel: SimplifyLevel;
   highlightCurrentNode: boolean;
   colorList: ColorList;
+  simplify: boolean;
 };
 type ColorSchemeOptions = "Light" | "Dark" | "Custom" | "System";
 function loadSettings(): Settings {
@@ -98,14 +97,13 @@ function loadSettings(): Settings {
         return getLightColorList();
     }
   })();
-
   return {
     flatSwitch: config.get("flatSwitch") ?? true,
-     simplifyLevel: config.get("simplifyLevel", "full") as SimplifyLevel,
     highlightCurrentNode: config.get("highlightCurrentNode") ?? true,
     colorList: colorList,
+    simplify: config.get("simplify") ?? true,
   };
-}
+  };
 
 function focusEditor() {
   const editor = vscode.window.activeTextEditor;
@@ -223,7 +221,7 @@ export async function activate(context: vscode.ExtensionContext) {
           provider.postMessage<UpdateSettings>({
             tag: "updateSettings",
             flatSwitch: settings.flatSwitch,
-            simplifyLevel: settings.simplifyLevel,
+            simplify: settings.simplify,
             highlightCurrentNode: settings.highlightCurrentNode,
             colorList: settings.colorList,
           });
@@ -237,8 +235,8 @@ export async function activate(context: vscode.ExtensionContext) {
       const settings = loadSettings();
       provider.postMessage<UpdateSettings>({
         tag: "updateSettings",
+        simplify: settings.simplify,
         flatSwitch: settings.flatSwitch,
-        simplifyLevel: settings.simplifyLevel,
         highlightCurrentNode: settings.highlightCurrentNode,
         colorList: settings.colorList,
       });

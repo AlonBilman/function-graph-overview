@@ -43,7 +43,6 @@ declare global {
   import * as jetbrainsDarkTheme from "./defaultDark.json";
   import type { MessageToWebview, NavigateTo } from "../../vscode/messages.ts";
 
-  type SimplifyLevel = "full" | "semi" | "none";
 
   /**
    * Are we running in a VSCode WebView?
@@ -51,7 +50,7 @@ declare global {
   const vscode =
     typeof acquireVsCodeApi !== "undefined" ? acquireVsCodeApi() : undefined;
 
-  let simplifyLevel = $state<SimplifyLevel>("full");
+  let simplify = $state(true);
   let flatSwitch = $state(true);
   let highlight = $state(true);
 
@@ -78,7 +77,7 @@ declare global {
   })());
 
   type Config = {
-    simplifyLevel?: SimplifyLevel;
+    simplify?: boolean;
     flatSwitch?: boolean;
     highlight?: boolean;
     colorList?: ColorList;
@@ -92,7 +91,7 @@ declare global {
 
   class StateHandler {
     private state: State = {
-      config: { simplifyLevel: "full", flatSwitch: true, highlight: true },
+      config: { simplify: true, flatSwitch: true, highlight: true },
     };
     private navigateToHandlers: ((offset: number, withControl: boolean, 
     functionNamesAndLocations?: { name: string; row: number; column: number }[]) => void)[] = [];
@@ -102,7 +101,7 @@ declare global {
       Object.assign(this.state, state);
       this.state.config = config;
       
-      simplifyLevel = state.config?.simplifyLevel ?? simplifyLevel;
+      simplify = Boolean(this.state.config.simplify);
       flatSwitch = Boolean(this.state.config.flatSwitch);
       highlight = Boolean(this.state.config.highlight);
 
@@ -151,7 +150,7 @@ declare global {
         }
         case "updateSettings":
           flatSwitch = message.flatSwitch;
-          simplifyLevel = message.simplifyLevel;
+          simplify = message.simplify;
           highlight = message.highlightCurrentNode;
           colorList = message.colorList;
           document.body.style.backgroundColor = colorList.find(
@@ -182,7 +181,7 @@ declare global {
     window.JetBrains ??= {};
     window.JetBrains.ToWebview = {
       setSimplify: (flag: boolean) =>
-        stateHandler.update({ config: { simplifyLevel: flag ? "full" : "none" } }),
+        stateHandler.update({ config: { simplify: flag } }),
       setFlatSwitch: (flag: boolean) =>
         stateHandler.update({ config: { flatSwitch: flag } }),
       setHighlight: (flag: boolean) =>
@@ -215,19 +214,20 @@ declare global {
 </script>
 
 <main>
-    <div class="simplification-controls">
-      <label for="graph-detail">Graph Detail:</label>
-      <select id="graph-detail" bind:value={simplifyLevel}>
-        <option value="none">Detailed</option>
-        <option value="semi">Simplified</option>
-        <option value="full">Compact</option>
-      </select>
-  </div>
+  <div class="simplification-controls">
+  <label>
+    <input
+      type="checkbox"
+      bind:checked={simplify}
+      id="simplify-toggle"
+    />
+    Simplify
+  </label>
+</div>
   <WebviewRenderer
     {codeAndOffset}
     {colorList}
-    simplify={simplifyLevel !== "none"}
-    {simplifyLevel}
+    {simplify}
     {flatSwitch}
     {highlight}
     on:node-clicked={navigateTo}
