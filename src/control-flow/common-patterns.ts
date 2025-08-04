@@ -24,16 +24,20 @@ import { Query } from "web-tree-sitter";
       }));
 
     //removing duplicate by (name + row + column)
-    const seen = new Set<string>();
-    const unique = mapped.filter(({ name, row, column }) => {
-      const key = `${name}-${row}-${column}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    return unique;
+    return removeDuplicateCalls(mapped);
   }
+
+  function removeDuplicateCalls(
+  calls: { name: string; row: number; column: number }[]
+): { name: string; row: number; column: number }[] {
+  const seen = new Set<string>();
+  return calls.filter(({ name, row, column }) => {
+    const key = `${name}-${row}-${column}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
   //Tags the condition node if it contains a function call.
   function tagCondNodeIfFuncCall(condSyntax: SyntaxNode | undefined, condBlock: BasicBlock | null, ctx: Context) {
@@ -248,7 +252,8 @@ export function cStyleForStatementProcessor(
     const bodyBlock = match.getBlock(bodySyntax);
 
     tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
-  
+    /*Fix the bug! */
+
     const entryNode = ctx.builder.addNode(
       "EMPTY",
       "loop head",
