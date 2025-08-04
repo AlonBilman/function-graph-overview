@@ -27,7 +27,7 @@ import { Query } from "web-tree-sitter";
     return removeDuplicateCalls(mapped);
   }
 
-  function removeDuplicateCalls(
+  export function removeDuplicateCalls(
   calls: { name: string; row: number; column: number }[]
 ): { name: string; row: number; column: number }[] {
   const seen = new Set<string>();
