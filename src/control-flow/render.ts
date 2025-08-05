@@ -30,14 +30,17 @@ function indent(text: string): string {
 }
 
 class RenderContext {
+  public readonly simplify: boolean;
   public readonly verbose: boolean;
   private readonly backlinks: { from: string; to: string }[];
   public readonly colorScheme: ColorScheme;
   constructor(
+    simplify: boolean,
     verbose: boolean,
     backlinks: { from: string; to: string }[],
     colorScheme: ColorScheme,
   ) {
+    this.simplify = simplify;
     this.verbose = verbose;
     this.backlinks = backlinks;
     this.colorScheme = colorScheme;
@@ -226,6 +229,7 @@ function renderSubgraphs(
 export function graphToDot(
   cfg: CFG,
   verbose = false,
+  simplify = true,
   colorScheme?: ColorScheme,
 ): string {
   const hierarchy = buildHierarchy(cfg);
@@ -234,6 +238,7 @@ export function graphToDot(
     cfg,
     hierarchy,
     new RenderContext(
+      simplify,
       verbose,
       backlinks,
       colorScheme ?? getDefaultColorScheme(),
@@ -316,15 +321,20 @@ function renderNode(
   const nodeAttrs = graph.getNodeAttributes(node);
 
   let nodeClass: NodeClass = "default";
-  if (nodeAttrs.hasFunctionCall) {
+  if (nodeAttrs.hasFunctionCall &&
+    context.simplify === false
+  ) {
     nodeClass = "functionCall";
+    console.log("I'm Here Niv1.");
   } else if (nodeAttrs.type === "THROW") {
     nodeClass = "throw";
   } else if (nodeAttrs.type === "YIELD") {
     nodeClass = "yield";
   } else if (nodeAttrs.type === "EXIT_PROCESS") {
     nodeClass = "terminate";
-  } else if (nodeAttrs.type === "FUNCTION_CALL") { 
+  } else if (nodeAttrs.type === "FUNCTION_CALL" &&
+    context.simplify === false) { 
+    console.log("I'm Here Niv2.", context.simplify);
     nodeClass = "functionCall";
   } else if (graph.degree(node) === 0) {
     // If we only have a single node, we draw it as a default block.

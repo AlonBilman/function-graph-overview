@@ -119,6 +119,7 @@ function getColorScheme(colors: string) {
 
 let rawSVG: string | undefined;
 
+
 type GithubParams = {
   type: "GitHub";
   rawUrl: string;
@@ -221,7 +222,7 @@ async function render() {
 
     const cfg = await createCFG(params);
     const graphviz = await Graphviz.load();
-    rawSVG = graphviz.dot(graphToDot(cfg, false, params.colorScheme));
+    rawSVG = graphviz.dot(graphToDot(cfg, false, true, params.colorScheme));
     return rawSVG;
   } catch (error) {
     console.error(error);
@@ -304,12 +305,16 @@ onMount(() => {
   .controlsContainer {
     position: fixed;
     display: flex;
-    justify-content: right;
+    justify-content: flex-end;
     width: 100%;
     z-index: 1000;
+    padding-right: 2em;
   }
   .controls {
     margin: 1em;
+    display: flex;
+    align-items: center;
+    gap: 1em;
   }
   .svgContainer {
     display: flex;

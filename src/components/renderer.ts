@@ -125,6 +125,7 @@ export class Renderer {
     const dot = graphToDot(
       cfg,
       this.options.verbose,
+      this.options.simplify,
       listToScheme(this.colorList),
     );
 
