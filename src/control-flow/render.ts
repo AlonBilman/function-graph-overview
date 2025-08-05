@@ -325,7 +325,6 @@ function renderNode(
     context.simplify === false
   ) {
     nodeClass = "functionCall";
-    console.log("I'm Here Niv1.");
   } else if (nodeAttrs.type === "THROW") {
     nodeClass = "throw";
   } else if (nodeAttrs.type === "YIELD") {
@@ -334,7 +333,6 @@ function renderNode(
     nodeClass = "terminate";
   } else if (nodeAttrs.type === "FUNCTION_CALL" &&
     context.simplify === false) { 
-    console.log("I'm Here Niv2.", context.simplify);
     nodeClass = "functionCall";
   } else if (graph.degree(node) === 0) {
     // If we only have a single node, we draw it as a default block.
