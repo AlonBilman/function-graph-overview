@@ -168,7 +168,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   async function onNodeClick(offset: number, withControl: boolean, 
     functionNamesAndLocations?: { name: string; row: number; column: number }[]): Promise<void> {
-    if (withControl) {
+    const settings = loadSettings();
+    if (withControl && settings.simplify === false) {
       try {
           moveCursorAndReveal(offset);
           if(functionNamesAndLocations && functionNamesAndLocations.length > 0) {
