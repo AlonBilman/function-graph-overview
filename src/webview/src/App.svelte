@@ -214,16 +214,6 @@ declare global {
 </script>
 
 <main>
-  <div class="simplification-controls">
-  <label>
-    <input
-      type="checkbox"
-      bind:checked={simplify}
-      id="simplify-toggle"
-    />
-    Simplify
-  </label>
-</div>
   <WebviewRenderer
     {codeAndOffset}
     {colorList}

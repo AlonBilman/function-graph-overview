@@ -218,6 +218,7 @@ function onZoomClick(
 
 let pzComp: PanzoomComp;
 let enableZoom: boolean = $state(false);
+
 const panAfterRender: Action = () => {
   if (functionChanged) {
     return;
@@ -232,6 +233,7 @@ const panAfterRender: Action = () => {
 };
 </script>
 <div class="editor-controls">
+  <input type="checkbox" id="simplify-toggle" bind:checked={simplify}/> <label for="simplify">Simplify</label>
   <input type="checkbox" id="panzoom" bind:checked={enableZoom}/> <label for="panzoom">Pan & Zoom</label>
 </div>
 <PanzoomComp bind:this={pzComp} onclick={onZoomClick} disabled={!enableZoom}>
