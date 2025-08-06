@@ -139,11 +139,26 @@ export function cStyleIfProcessor(
 
     // An ugly hack to make tsc not hate us.
     const firstBlock = blocks[0];
-    if (containsFunctionCall && firstBlock)
-      ctx.builder.setDefault(firstBlock.condBlock.entry, {
-        hasFunctionCall: true,
-      });
-
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      if (block) {
+        const condNode = allIfs[i]?.requireSyntax("cond");
+        if (
+          condNode &&
+          (
+            extractFunctionNamesAndLocation(
+              condNode,
+              functionCallCaptureQuery,
+              "call",
+            ) ?? []
+          ).length > 0
+        ) {
+          ctx.builder.setDefault(block.condBlock.entry, {
+            hasFunctionCall: true,
+          });
+        }
+      }
+    }
     if (firstBlock?.condBlock.entry)
       ctx.builder.addEdge(headNode, firstBlock.condBlock.entry);
 
