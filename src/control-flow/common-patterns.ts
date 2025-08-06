@@ -95,22 +95,7 @@ export function cStyleIfProcessor(
       elseBlock: ifMatch.getBlock(ifMatch.getSyntax("else-body")),
     }));
 
-    //Get all the cond nodes and check if there is a function call in any of them.
-    const allCondNodes: SyntaxNode[] = allIfs.map((match) =>
-      match.requireSyntax("cond"),
-    );
-    // Check if any of the condition nodes contain a function call.
-    const containsFunctionCall = allCondNodes.some(
-      (node) =>
-        (
-          extractFunctionNamesAndLocation(
-            node,
-            functionCallCaptureQuery,
-            "call",
-          ) ?? []
-        ).length > 0,
-    );
-
+    
     for (const [ifMatch, { condBlock }] of zip(allIfs, blocks)) {
       ctx.link.syntaxToNode(ifMatch.requireSyntax("if"), condBlock.entry);
       ctx.link.offsetToSyntax(
@@ -144,21 +129,19 @@ export function cStyleIfProcessor(
       if (block) {
         const condNode = allIfs[i]?.requireSyntax("cond");
         if (
-          condNode &&
-          (
-            extractFunctionNamesAndLocation(
-              condNode,
-              functionCallCaptureQuery,
-              "call",
-            ) ?? []
-          ).length > 0
-        ) {
-          ctx.builder.setDefault(block.condBlock.entry, {
-            hasFunctionCall: true,
-          });
-        }
-      }
+        condNode &&
+        (extractFunctionNamesAndLocation(
+        condNode,
+        functionCallCaptureQuery,
+        "call",
+      ) ?? []).length > 0
+    ) {
+      ctx.builder.setDefault(block.condBlock.entry, {
+        hasFunctionCall: true,
+      });
     }
+  }
+}
     if (firstBlock?.condBlock.entry)
       ctx.builder.addEdge(headNode, firstBlock.condBlock.entry);
 
