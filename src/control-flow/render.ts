@@ -321,9 +321,7 @@ function renderNode(
   const nodeAttrs = graph.getNodeAttributes(node);
 
   let nodeClass: NodeClass = "default";
-  if (nodeAttrs.hasFunctionCall &&
-    context.simplify === false
-  ) {
+  if (nodeAttrs.hasFunctionCall && context.simplify === false) {
     nodeClass = "functionCall";
   } else if (nodeAttrs.type === "THROW") {
     nodeClass = "throw";
@@ -331,8 +329,7 @@ function renderNode(
     nodeClass = "yield";
   } else if (nodeAttrs.type === "EXIT_PROCESS") {
     nodeClass = "terminate";
-  } else if (nodeAttrs.type === "FUNCTION_CALL" &&
-    context.simplify === false) { 
+  } else if (nodeAttrs.type === "FUNCTION_CALL" && context.simplify === false) {
     nodeClass = "functionCall";
   } else if (graph.degree(node) === 0) {
     // If we only have a single node, we draw it as a default block.

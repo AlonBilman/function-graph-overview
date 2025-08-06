@@ -1,61 +1,81 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
+import { Query } from "web-tree-sitter";
 import type { Match } from "./block-matcher.ts";
 import type { BasicBlock } from "./cfg-defs.ts";
 import type { Context } from "./generic-cfg-builder.ts";
 import { treeSitterNoNullNodes } from "./hacks.ts";
 import { last, pairwise, zip } from "./itertools.ts";
-import { Query } from "web-tree-sitter";
 
-  export function extractFunctionNamesAndLocation(
-    func: SyntaxNode,
-    query: string,
-    tag: string
-  ): { name: string; row: number; column: number }[] | undefined {
-    const queryObj = new Query(func.tree.language, query);
+export function extractFunctionNamesAndLocation(
+  func: SyntaxNode,
+  query: string,
+  tag: string,
+): { name: string; row: number; column: number }[] | undefined {
+  const queryObj = new Query(func.tree.language, query);
 
-    const mapped = queryObj
-      .captures(func)
-      .filter(capture => capture.name === tag)
-      .map(capture => ({
-        name: capture.node.text,
-        //In order to match the vscode numbering (or the demo page numbering) Ive added +1
-        row: capture.node.startPosition.row + 1, 
-        column: capture.node.startPosition.column,
-      }));
+  const mapped = queryObj
+    .captures(func)
+    .filter((capture) => capture.name === tag)
+    .map((capture) => ({
+      name: capture.node.text,
+      //In order to match the vscode numbering (or the demo page numbering) Ive added +1
+      row: capture.node.startPosition.row + 1,
+      column: capture.node.startPosition.column,
+    }));
 
-    //removing duplicate by (name + row + column)
-    const seen = new Set<string>();
-    const unique = mapped.filter(({ name, row, column }) => {
-      const key = `${name}-${row}-${column}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  //removing duplicate by (name + row + column)
+  const seen = new Set<string>();
+  const unique = mapped.filter(({ name, row, column }) => {
+    const key = `${name}-${row}-${column}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-    return unique;
+  return unique;
+}
+
+//Tags the condition node if it contains a function call.
+function tagCondNodeIfFuncCall(
+  condSyntax: SyntaxNode | undefined,
+  condBlock: BasicBlock | null,
+  ctx: Context,
+) {
+  const hasFunctionCall =
+    condSyntax &&
+    (
+      extractFunctionNamesAndLocation(
+        condSyntax,
+        functionCallCaptureQuery,
+        "call",
+      ) ?? []
+    ).length > 0;
+  if (hasFunctionCall && condBlock) {
+    // Paint the node to indicate it contains a function call.
+    ctx.builder.setDefault(condBlock.entry, { hasFunctionCall: true });
   }
+}
 
-  //Tags the condition node if it contains a function call.
-  function tagCondNodeIfFuncCall(condSyntax: SyntaxNode | undefined, condBlock: BasicBlock | null, ctx: Context) {
-    const hasFunctionCall = condSyntax && (extractFunctionNamesAndLocation(condSyntax, functionCallCaptureQuery, "call") ?? []).length > 0;
-    if (hasFunctionCall && condBlock) {
-      // Paint the node to indicate it contains a function call.
-      ctx.builder.setDefault(condBlock.entry, { hasFunctionCall: true });
-    }
-  }
+//Only c Style for now.....
+const functionCallCaptureQuery = ` 
+  (parenthesized_expression
+    (call_expression) @call) 
 
-    //Only c Style for now.....
-    const functionCallCaptureQuery = ` 
-      (parenthesized_expression
-        (call_expression) @call) 
+  (parenthesized_expression
+    (binary_expression
+      (call_expression) @call))
 
-      (parenthesized_expression
-        (binary_expression
-          (call_expression) @call))
-
-      (binary_expression
-        (call_expression) @call)
-    `;
+  (binary_expression
+    (call_expression) @call)
+    
+  (call_expression) @call
+  
+  (update_expression
+    (call_expression) @call)
+    
+  (assignment_expression
+    right: (call_expression) @call)
+`;
 
 export function cStyleIfProcessor(
   queryString: string,
@@ -74,13 +94,22 @@ export function cStyleIfProcessor(
       thenBlock: ifMatch.getBlock(ifMatch.requireSyntax("then")),
       elseBlock: ifMatch.getBlock(ifMatch.getSyntax("else-body")),
     }));
-    
+
     //Get all the cond nodes and check if there is a function call in any of them.
-    const allCondNodes: SyntaxNode[] = allIfs.map(match => match.requireSyntax("cond"));
+    const allCondNodes: SyntaxNode[] = allIfs.map((match) =>
+      match.requireSyntax("cond"),
+    );
     // Check if any of the condition nodes contain a function call.
     const containsFunctionCall = allCondNodes.some(
-      node => (extractFunctionNamesAndLocation(node, functionCallCaptureQuery, "call") ?? []).length > 0
-      );
+      (node) =>
+        (
+          extractFunctionNamesAndLocation(
+            node,
+            functionCallCaptureQuery,
+            "call",
+          ) ?? []
+        ).length > 0,
+    );
 
     for (const [ifMatch, { condBlock }] of zip(allIfs, blocks)) {
       ctx.link.syntaxToNode(ifMatch.requireSyntax("if"), condBlock.entry);
@@ -110,9 +139,11 @@ export function cStyleIfProcessor(
 
     // An ugly hack to make tsc not hate us.
     const firstBlock = blocks[0];
-    if(containsFunctionCall && firstBlock) 
-      ctx.builder.setDefault(firstBlock.condBlock.entry, { hasFunctionCall: true });
-    
+    if (containsFunctionCall && firstBlock)
+      ctx.builder.setDefault(firstBlock.condBlock.entry, {
+        hasFunctionCall: true,
+      });
+
     if (firstBlock?.condBlock.entry)
       ctx.builder.addEdge(headNode, firstBlock.condBlock.entry);
 
@@ -247,8 +278,10 @@ export function cStyleForStatementProcessor(
     const updateBlock = match.getBlock(updateSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
+    // Tag BOTH condition and update nodes if they contain function calls
     tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
-  
+    tagCondNodeIfFuncCall(updateSyntax, updateBlock, ctx);
+
     const entryNode = ctx.builder.addNode(
       "EMPTY",
       "loop head",
@@ -369,17 +402,17 @@ export function cStyleWhileProcessor(): (
       body: (_) @body
       ) @while
   `;
-    
+
     const match = ctx.matcher.match(whileSyntax, queryString);
-  
+
     const condSyntax = match.requireSyntax("cond");
     const bodySyntax = match.requireSyntax("body");
-  
+
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
     tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
-  
+
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",
       "loop exit",

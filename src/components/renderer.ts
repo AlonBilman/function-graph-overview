@@ -48,10 +48,8 @@ export class Renderer {
     offsetToNode: (offset: number) => string;
     nodeIdToSyntaxNode: Map<string, SyntaxNode>;
   } {
-    let { dot, svg, getNodeOffset, offsetToNode, nodeIdToSyntaxNode } = this.memoizedRenderStatic(
-      functionSyntax,
-      language,
-    );
+    let { dot, svg, getNodeOffset, offsetToNode, nodeIdToSyntaxNode } =
+      this.memoizedRenderStatic(functionSyntax, language);
 
     // We want to allow the function to move without changing (in case of code
     // edits in other functions).
@@ -105,7 +103,7 @@ export class Renderer {
     let cfg = builder.buildCFG(functionSyntax);
     if (!cfg) throw new Error("Failed generating CFG for function");
     if (this.options.trim) cfg = trimFor(cfg);
-        const nodeAttributeMerger: AttrMerger = this.options.showRegions
+    const nodeAttributeMerger: AttrMerger = this.options.showRegions
       ? overlayBuilder.getAttrMerger(mergeNodeAttrs)
       : mergeNodeAttrs;
     if (this.options.simplify) {
@@ -113,10 +111,13 @@ export class Renderer {
     }
     cfg = remapNodeTargets(cfg);
 
-    // Build nodeIdToSyntaxNode map 
+    // Build nodeIdToSyntaxNode map
     const nodeIdToSyntaxNode = new Map<string, SyntaxNode>();
     if (builder && builder.nodeMapper && builder.nodeMapper.syntaxToNode) {
-      for (const [syntax, nodeId] of builder.nodeMapper.syntaxToNode.entries()) {
+      for (const [
+        syntax,
+        nodeId,
+      ] of builder.nodeMapper.syntaxToNode.entries()) {
         nodeIdToSyntaxNode.set(nodeId, syntax);
       }
     }

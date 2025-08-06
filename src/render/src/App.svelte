@@ -119,7 +119,6 @@ function getColorScheme(colors: string) {
 
 let rawSVG: string | undefined;
 
-
 type GithubParams = {
   type: "GitHub";
   rawUrl: string;

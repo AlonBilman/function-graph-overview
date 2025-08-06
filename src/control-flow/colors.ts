@@ -8,7 +8,7 @@ export type ColorList = [
   { name: "node.terminate"; hex: string },
   { name: "node.border"; hex: string },
   { name: "node.highlight"; hex: string },
-  {name: "node.functionCall"; hex: string },
+  { name: "node.functionCall"; hex: string },
   // Edge Colors
   { name: "edge.regular"; hex: string },
   { name: "edge.consequence"; hex: string },

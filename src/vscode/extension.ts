@@ -64,7 +64,6 @@ function isThemeDark(): boolean {
   return theme.kind === vscode.ColorThemeKind.Dark;
 }
 
-
 type Settings = {
   flatSwitch: boolean;
   highlightCurrentNode: boolean;
@@ -103,7 +102,7 @@ function loadSettings(): Settings {
     colorList: colorList,
     simplify: config.get("simplify") ?? true,
   };
-  };
+}
 
 function focusEditor() {
   const editor = vscode.window.activeTextEditor;
@@ -139,7 +138,10 @@ export async function activate(context: vscode.ExtensionContext) {
   const provider = new OverviewViewProvider(
     context.extensionUri,
     isThemeDark(),
-    { navigateTo: ({ offset, withControl, functionNamesAndLocations }) => onNodeClick(offset, withControl, functionNamesAndLocations) },
+    {
+      navigateTo: ({ offset, withControl, functionNamesAndLocations }) =>
+        onNodeClick(offset, withControl, functionNamesAndLocations),
+    },
   );
 
   context.subscriptions.push(
@@ -160,54 +162,54 @@ export async function activate(context: vscode.ExtensionContext) {
     if (!editor) return;
     // In order to match the VS Code API
     // even though it doesnt exactly match the text editor's line numbers
-    row-=1;
+    row -= 1;
     const pos = new vscode.Position(row, col);
     editor.selection = new vscode.Selection(pos, pos);
-    editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+    editor.revealRange(
+      new vscode.Range(pos, pos),
+      vscode.TextEditorRevealType.InCenter,
+    );
   }
 
-  async function onNodeClick(offset: number, withControl: boolean, 
-    functionNamesAndLocations?: { name: string; row: number; column: number }[]): Promise<void> {
+  async function onNodeClick(
+    offset: number,
+    withControl: boolean,
+    functionNamesAndLocations?: { name: string; row: number; column: number }[],
+  ): Promise<void> {
     if (withControl) {
       try {
-          moveCursorAndReveal(offset);
-          if(functionNamesAndLocations && functionNamesAndLocations.length > 0) {
-            //Prepare QuickPick items with additional metadata (name, row, column) so we can
-            //access the full function info later after user selection, instead of parsing strings. 
-            const quickPickItems: FunctionPickItem[] = functionNamesAndLocations.map(fn => ({
+        moveCursorAndReveal(offset);
+        if (functionNamesAndLocations && functionNamesAndLocations.length > 0) {
+          //Prepare QuickPick items with additional metadata (name, row, column) so we can
+          //access the full function info later after user selection, instead of parsing strings.
+          const quickPickItems: FunctionPickItem[] =
+            functionNamesAndLocations.map((fn) => ({
               label: fn.name,
               description: `(row: ${fn.row}, col: ${fn.column})`,
               name: fn.name,
               row: fn.row,
-              column: fn.column
+              column: fn.column,
             }));
-          
-          const selection = await vscode.window.showQuickPick( 
-            quickPickItems,
-            {   
-              placeHolder: "What function do you want to go to?",
-              canPickMany: false
-            }
-          );
+
+          const selection = await vscode.window.showQuickPick(quickPickItems, {
+            placeHolder: "What function do you want to go to?",
+            canPickMany: false,
+          });
 
           if (selection) {
             // Ok! now the magic happens — let's jump to the function call and mimic F12.
             jumpToCursor(selection.row, selection.column);
-           
           } else {
             vscode.window.showInformationMessage("No function selected.");
             return;
           }
-          
         }
-        vscode.commands.executeCommand('editor.action.revealDefinition');
+        vscode.commands.executeCommand("editor.action.revealDefinition");
         focusEditor();
-       
       } catch (error) {
         console.error("Error during QuickPick or command execution:", error);
       }
-    }
-    else {
+    } else {
       moveCursorAndReveal(offset);
       focusEditor();
     }

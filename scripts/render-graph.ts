@@ -58,9 +58,7 @@ async function main() {
   const graphviz = await Graphviz.load();
 
   const simplify =
-  typeof values.simplify === "boolean"
-    ? values.simplify
-    : true;
+    typeof values.simplify === "boolean" ? values.simplify : true;
   const dot = graphToDot(cfg, false, simplify, colorScheme);
 
   if (values.dot) {

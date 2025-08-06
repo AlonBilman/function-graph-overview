@@ -110,14 +110,14 @@ function renderCode(
   const renderer = getRenderer(options, colorList, graphviz);
   const renderResult = renderer.render(functionSyntax, language, cursorOffset);
   getNodeOffset = (nodeId: string) => {
-    if (typeof renderResult.getNodeOffset === 'function') {
+    if (typeof renderResult.getNodeOffset === "function") {
       const val = renderResult.getNodeOffset(nodeId);
       return val !== undefined ? val : undefined;
     }
     return undefined;
   };
   offsetToNode = (offset: number) => {
-    if (typeof renderResult.offsetToNode === 'function') {
+    if (typeof renderResult.offsetToNode === "function") {
       const val = renderResult.offsetToNode(offset);
       return val !== undefined ? val : undefined;
     }
@@ -186,11 +186,14 @@ function onZoomClick(
   }
   //still, this is experimental and I need to find a better way to do this.
   let functions: { name: string; row: number; column: number }[] = [];
-  //we want it work only on simplify mode
-  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id) && simplify === false) {
+  //we want it work only on detailed mode
+  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id) && !simplify) {
     const syntaxNode = nodeIdToSyntaxNode.get(target.id);
     if (syntaxNode) {
-      functions = extractFunctionNamesAndLocation(syntaxNode, ` 
+      functions =
+        extractFunctionNamesAndLocation(
+          syntaxNode,
+          ` 
         (parenthesized_expression
           (call_expression) @call) 
 
@@ -200,12 +203,26 @@ function onZoomClick(
 
         (binary_expression
           (call_expression) @call)
-      `, "call") ?? [];
-      if(!functions.length) {
-        functions = extractFunctionNamesAndLocation(syntaxNode, `
+          (call_expression) @call
+  
+        (update_expression
+          (call_expression) @call)
+    
+        (assignment_expression
+          right: (call_expression) @call)
+      `,
+          "call",
+        ) ?? [];
+      if (!functions.length) {
+        functions =
+          extractFunctionNamesAndLocation(
+            syntaxNode,
+            `
         (call_expression) 
           function: (identifier) @call
-        `, "call") ?? [];
+        `,
+            "call",
+          ) ?? [];
       }
     }
   }
