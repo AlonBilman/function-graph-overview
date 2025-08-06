@@ -186,7 +186,8 @@ function onZoomClick(
   }
   //still, this is experimental and I need to find a better way to do this.
   let functions: { name: string; row: number; column: number }[] = [];
-  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id)) {
+  //we want it work only on simplify mode
+  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id) && simplify === false) {
     const syntaxNode = nodeIdToSyntaxNode.get(target.id);
     if (syntaxNode) {
       functions = extractFunctionNamesAndLocation(syntaxNode, ` 
