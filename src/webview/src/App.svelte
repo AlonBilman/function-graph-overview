@@ -131,14 +131,12 @@ declare global {
     }
   }
 
+  let breakpointLines: number[] = $state([]); // NEW
+
   function initVSCode(stateHandler: StateHandler): void {
-    if (!vscode) {
-      // We're not running in VSCode
-      return;
-    }
-    // Handle messages sent from the extension to the webview
-    window.addEventListener("message", (event: { data: MessageToWebview }) => {
-      const message = event.data; // The json data that the extension sent
+    if (!vscode) return;
+    window.addEventListener("message", (event) => {
+      const message = event.data;
       switch (message.tag) {
         case "updateCode": {
           stateHandler.update({
@@ -156,6 +154,10 @@ declare global {
           document.body.style.backgroundColor = colorList.find(
             ({ name }) => name === "graph.background",
           ).hex;
+          break;
+        case "updateBreakpoints":
+          breakpointLines = Array.isArray(message.lines) ? message.lines : [];
+          break;
       }
     });
 
@@ -220,6 +222,7 @@ declare global {
     {simplify}
     {flatSwitch}
     {highlight}
+    breakpointLines={breakpointLines}
     on:node-clicked={navigateTo}
   />
 </main>

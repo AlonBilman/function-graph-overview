@@ -13,6 +13,7 @@ import { type RenderOptions, Renderer } from "./renderer.ts";
 import { type Parsers, initialize as initializeUtils } from "./utils";
 type CodeAndOffset = { code: string; offset: number; language: Language };
 import { extractFunctionNamesAndLocation } from "../control-flow/common-patterns";
+import { renderBreakpointDots } from "../control-flow/overlay.ts";
 let parsers: Parsers;
 let graphviz: Graphviz;
 let getNodeOffset: (nodeId: string) => number | undefined = () => undefined;
@@ -29,6 +30,7 @@ interface Props {
   flatSwitch?: boolean;
   highlight?: boolean;
   showRegions?: boolean;
+  breakpointLines?: number[]; // NEW
 }
 
 let {
@@ -40,7 +42,54 @@ let {
   flatSwitch = true,
   highlight = true,
   showRegions = false,
+  breakpointLines = [], // stays reactive as a prop
 }: Props = $props();
+
+// Map line -> nodeIds (built per render)
+let lineToNodes: Map<number, string[]> = new Map();
+
+function rebuildLineIndex() {
+  const map = new Map<number, string[]>();
+  for (const [nodeId, sn] of nodeIdToSyntaxNode.entries()) {
+    const line = sn.startPosition.row; // 0-based
+    const arr = map.get(line) ?? [];
+    arr.push(nodeId);
+    map.set(line, arr);
+  }
+  lineToNodes = map;
+}
+
+function ensureBreakpointDot(nodeId: string) {
+  const g = document.getElementById(nodeId) as SVGGElement | null;
+  if (!g) return;
+  if (g.querySelector(".breakpoint-dot")) return;
+  const polygon = g.querySelector("polygon") as SVGGraphicsElement | null;
+  if (!polygon) return;
+  const box = polygon.getBBox();
+
+  const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  dot.setAttribute("class", "breakpoint-dot");
+  dot.setAttribute("r", "5");
+  dot.setAttribute("fill", "#e51400");
+  dot.setAttribute("stroke", "none");
+  dot.setAttribute("cx", String(box.x + 8));
+  dot.setAttribute("cy", String(box.y + 8));
+  g.appendChild(dot);
+}
+
+function clearAllBreakpointDots() {
+  document.querySelectorAll("svg g.node .breakpoint-dot").forEach((el) => el.remove());
+}
+
+function refreshBreakpointDots() {
+  clearAllBreakpointDots();
+  if (!breakpointLines?.length) return;            // read prop directly
+  for (const line of breakpointLines) {
+    const nodes = lineToNodes.get(line);
+    if (!nodes) continue;
+    for (const nodeId of nodes) ensureBreakpointDot(nodeId);
+  }
+}
 
 const getRenderer = memoizeFunction({
   func: (options: RenderOptions, colorList: ColorList, graphviz: Graphviz) =>
@@ -109,6 +158,7 @@ function renderCode(
 
   const renderer = getRenderer(options, colorList, graphviz);
   const renderResult = renderer.render(functionSyntax, language, cursorOffset);
+
   getNodeOffset = (nodeId: string) => {
     if (typeof renderResult.getNodeOffset === "function") {
       const val = renderResult.getNodeOffset(nodeId);
@@ -124,8 +174,19 @@ function renderCode(
     return undefined;
   };
   nodeIdToSyntaxNode = renderResult.nodeIdToSyntaxNode;
+
+  // Build per-render index and draw dots after the SVG is mounted
+  rebuildLineIndex();
+  queueMicrotask(refreshBreakpointDots);
+
   return renderResult.svg;
 }
+
+// Keep dots in sync when only breakpointLines change (no graph re-render)
+$effect(() => {
+  void breakpointLines;       // ensure reactivity
+  refreshBreakpointDots();
+});
 
 function renderWrapper(
   codeAndOffset: CodeAndOffset | null,

@@ -6,7 +6,7 @@ import {
   getDarkColorList,
   getLightColorList,
 } from "../control-flow/colors";
-import type { UpdateCode, UpdateSettings } from "./messages.ts";
+import type { UpdateCode, UpdateSettings, UpdateBreakpoints } from "./messages.ts";
 import { OverviewViewProvider } from "./overview-view";
 
 /* Disable a specific oxlint check until https://github.com/oxc-project/oxc/issues/10106
@@ -266,6 +266,9 @@ export async function activate(context: vscode.ExtensionContext) {
           offset,
           language,
         });
+
+        // NEW: keep breakpoint dots in sync when cursor moves or user clicks a node
+        postBreakpointsForActiveEditor();
       },
     ),
   );
@@ -279,6 +282,31 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(command, commandHandler),
   );
+
+  function postBreakpointsForActiveEditor() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+    const uri = editor.document.uri.toString();
+    const lines = vscode.debug.breakpoints
+      .filter(
+        (bp): bp is vscode.SourceBreakpoint =>
+          bp instanceof vscode.SourceBreakpoint &&
+          bp.location.uri.toString() === uri,
+      )
+      .map((bp) => bp.location.range.start.line); // 0-based
+    provider.postMessage<UpdateBreakpoints>({ tag: "updateBreakpoints", lines });
+  }
+
+  context.subscriptions.push(
+    vscode.debug.onDidChangeBreakpoints(() => postBreakpointsForActiveEditor()),
+  );
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => postBreakpointsForActiveEditor()),
+  );
+
+  // Seed on activation
+  postBreakpointsForActiveEditor();
 }
 
 // This method is called when your extension is deactivated

@@ -26,7 +26,16 @@ export type UpdateSettings = {
   colorList: ColorList;
 };
 
-export type MessageToWebview = UpdateCode | UpdateSettings;
+export type UpdateBreakpoints = {
+  tag: "updateBreakpoints";
+  lines: number[]; // 0-based lines with breakpoints
+  uri?: string;    // optional, if you want to scope by document
+};
+
+export type MessageToWebview =
+  | UpdateCode
+  | UpdateSettings
+  | UpdateBreakpoints;
 export type MessageToVscode = NavigateTo;
 
 type Message = MessageToVscode | MessageToWebview;
