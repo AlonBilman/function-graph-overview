@@ -224,6 +224,10 @@ declare global {
     {highlight}
     breakpointLines={breakpointLines}
     on:node-clicked={navigateTo}
+    on:toggle-breakpoint={(e) => {
+      const { line } = e.detail;
+      vscode?.postMessage<MessageToVscode>({ tag: "toggleBreakpoint", line });
+    }}
   />
 </main>
 

@@ -295,6 +295,66 @@ function onZoomClick(
   });
 }
 
+// NEW: simple context menu state and handlers
+let ctxMenu = $state<{ visible: boolean; x: number; y: number; nodeId?: string; line?: number; has?: boolean }>({
+  visible: false,
+  x: 0,
+  y: 0,
+});
+
+function hideContextMenu() {
+  ctxMenu = { visible: false, x: 0, y: 0 };
+}
+
+// Find node under cursor, compute its first line, and show menu
+function onContextMenu(event: MouseEvent) {
+  let target: Element = event.target as Element;
+  while (
+    target.tagName !== "div" &&
+    target.tagName !== "svg" &&
+    !target.classList.contains("node") &&
+    target.parentElement !== null
+  ) {
+    target = target.parentElement;
+  }
+  if (!target.classList.contains("node")) return;
+
+  event.preventDefault();
+
+  const nodeId = (target as HTMLElement).id;
+  const syntax = nodeIdToSyntaxNode.get(nodeId);
+  if (!syntax) return;
+
+  const line = syntax.startPosition.row; // 0-based line
+  const has = breakpointLines?.includes(line) ?? false;
+
+  ctxMenu = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    nodeId,
+    line,
+    has,
+  };
+}
+
+// Emit to parent; we’ll wire VS Code in the next step
+function onToggleBreakpointClick() {
+  if (!ctxMenu.visible || ctxMenu.nodeId === undefined || ctxMenu.line === undefined) return;
+
+  dispatch("toggle-breakpoint", {
+    nodeId: ctxMenu.nodeId,
+    line: ctxMenu.line,
+  });
+
+  hideContextMenu();
+}
+
+// Close menu on outside click
+document.addEventListener("click", () => {
+  if (ctxMenu.visible) hideContextMenu();
+});
+
 let pzComp: PanzoomComp;
 let enableZoom: boolean = $state(false);
 
@@ -320,7 +380,7 @@ const panAfterRender: Action = () => {
   <!-- I don't know how to make this part accessible. PRs welcome! -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="graph">
+  <div class="graph" oncontextmenu={onContextMenu}>
     {#await asyncRenderWrapper(
       codeAndOffset,
       {
@@ -341,6 +401,27 @@ const panAfterRender: Action = () => {
 {/await}
 </PanzoomComp>
 
+{#if ctxMenu.visible}
+  <button
+    type="button"
+    class="context-menu"
+    style={"top:" + ctxMenu.y + "px;left:" + ctxMenu.x + "px"}
+    aria-label={ctxMenu.has ? "Remove Breakpoint" : "Add Breakpoint"}
+    onclick={e => { e.stopPropagation(); onToggleBreakpointClick(); }}
+    onkeydown={e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onToggleBreakpointClick();
+      }
+    }}
+  >
+    {#if ctxMenu.has}
+      Remove Breakpoint
+    {:else}
+      Add Breakpoint
+    {/if}
+  </button>
+{/if}
 
 <style>
   .graph {
@@ -355,6 +436,20 @@ const panAfterRender: Action = () => {
   .svg-wrapper {
       width: 100%;
       height: 100%;
+  }
+
+  .context-menu {
+    position: fixed;
+    z-index: 10000;
+    background: var(--vscode-editor-background, #2b2d30);
+    color: var(--vscode-editor-foreground, #ddd);
+    border: 1px solid var(--vscode-editor-foreground, #555);
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    font-size: 12px;
   }
 
   :root {

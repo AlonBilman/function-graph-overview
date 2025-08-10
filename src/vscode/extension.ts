@@ -6,7 +6,12 @@ import {
   getDarkColorList,
   getLightColorList,
 } from "../control-flow/colors";
-import type { UpdateCode, UpdateSettings, UpdateBreakpoints } from "./messages.ts";
+import type {
+  UpdateCode,
+  UpdateSettings,
+  UpdateBreakpoints,
+  ToggleBreakpoint,   // NEW
+} from "./messages.ts";
 import { OverviewViewProvider } from "./overview-view";
 
 /* Disable a specific oxlint check until https://github.com/oxc-project/oxc/issues/10106
@@ -141,6 +146,11 @@ export async function activate(context: vscode.ExtensionContext) {
     {
       navigateTo: ({ offset, withControl, functionNamesAndLocations }) =>
         onNodeClick(offset, withControl, functionNamesAndLocations),
+
+      // NEW: toggle breakpoint requested from the webview
+      toggleBreakpoint: ({ line }: ToggleBreakpoint) => {
+        toggleBreakpointAtActiveEditorLine(line);
+      },
     },
   );
 
@@ -293,16 +303,40 @@ export async function activate(context: vscode.ExtensionContext) {
           bp instanceof vscode.SourceBreakpoint &&
           bp.location.uri.toString() === uri,
       )
-      .map((bp) => bp.location.range.start.line); // 0-based
+      .map((bp) => bp.location.range.start.line);
     provider.postMessage<UpdateBreakpoints>({ tag: "updateBreakpoints", lines });
+  }
+
+  // NEW: toggle helper for the active editor
+  function toggleBreakpointAtActiveEditorLine(line: number) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+
+    const uri = editor.document.uri;
+    const existing = vscode.debug.breakpoints.filter(
+      (bp): bp is vscode.SourceBreakpoint =>
+        bp instanceof vscode.SourceBreakpoint &&
+        bp.location.uri.toString() === uri.toString() &&
+        bp.location.range.start.line === line,
+    );
+
+    if (existing.length) {
+      vscode.debug.removeBreakpoints(existing);
+    } else {
+      const location = new vscode.Location(uri, new vscode.Position(line, 0));
+      vscode.debug.addBreakpoints([new vscode.SourceBreakpoint(location, true)]);
+    }
+    // onDidChangeBreakpoints will fire and push updateBreakpoints; no need to post manually.
   }
 
   context.subscriptions.push(
     vscode.debug.onDidChangeBreakpoints(() => postBreakpointsForActiveEditor()),
   );
-
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(() => postBreakpointsForActiveEditor()),
+  );
+  context.subscriptions.push(
+    vscode.window.onDidChangeTextEditorSelection(() => postBreakpointsForActiveEditor()),
   );
 
   // Seed on activation
