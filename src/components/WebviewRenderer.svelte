@@ -336,6 +336,17 @@ function onContextMenu(event: MouseEvent) {
   if (!syntax) return;
 
   const line = syntax.startPosition.row; // 0-based line
+  //const col = syntax.startPosition.column;
+  const code = syntax.text;
+
+  // Debug log: nodeId, line, column, code
+  console.log(`[CFG] Node clicked:`, {
+    nodeId,
+    line,
+    code,
+    syntax,
+  });
+
   const has = breakpointLines?.includes(line) ?? false;
 
   ctxMenu = {
