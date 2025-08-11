@@ -250,10 +250,10 @@ function onZoomClick(
   }
   //still, this is experimental and I need to find a better way to do this.
   let functions: { name: string; row: number; column: number }[] = [];
-  //we want it work only on detailed mode
-  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id) && !simplify) {
+  //we want it work only on detailed mode  
+  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id) && !simplify && target.classList.contains("functionCall")) {
     const syntaxNode = nodeIdToSyntaxNode.get(target.id);
-    if (syntaxNode) {
+    if (syntaxNode ) {
       functions =
         extractFunctionNamesAndLocation(
           syntaxNode,
@@ -290,12 +290,23 @@ function onZoomClick(
       }
     }
   }
-  dispatch("node-clicked", {
+  if(target.classList.contains("functionCall")){
+    dispatch("node-clicked", {
     node: target.id,
     withControl: event.ctrlKey,
     offset: getNodeOffset(target.id) ?? undefined,
     functionNamesAndLocations: functions,
   });
+  }
+  else{
+    dispatch("node-clicked", {
+    node: target.id,
+    withControl: false,
+    offset: getNodeOffset(target.id) ?? undefined,
+    functionNamesAndLocations: functions,
+  });
+  }
+    
 }
 
 // NEW: simple context menu state and handlers
