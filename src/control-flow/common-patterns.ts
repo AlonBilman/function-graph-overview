@@ -95,7 +95,6 @@ export function cStyleIfProcessor(
       elseBlock: ifMatch.getBlock(ifMatch.getSyntax("else-body")),
     }));
 
-    
     for (const [ifMatch, { condBlock }] of zip(allIfs, blocks)) {
       ctx.link.syntaxToNode(ifMatch.requireSyntax("if"), condBlock.entry);
       ctx.link.offsetToSyntax(
@@ -129,19 +128,21 @@ export function cStyleIfProcessor(
       if (block) {
         const condNode = allIfs[i]?.requireSyntax("cond");
         if (
-        condNode &&
-        (extractFunctionNamesAndLocation(
-        condNode,
-        functionCallCaptureQuery,
-        "call",
-      ) ?? []).length > 0
-    ) {
-      ctx.builder.setDefault(block.condBlock.entry, {
-        hasFunctionCall: true,
-      });
+          condNode &&
+          (
+            extractFunctionNamesAndLocation(
+              condNode,
+              functionCallCaptureQuery,
+              "call",
+            ) ?? []
+          ).length > 0
+        ) {
+          ctx.builder.setDefault(block.condBlock.entry, {
+            hasFunctionCall: true,
+          });
+        }
+      }
     }
-  }
-}
     if (firstBlock?.condBlock.entry)
       ctx.builder.addEdge(headNode, firstBlock.condBlock.entry);
 

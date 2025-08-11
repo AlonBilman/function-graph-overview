@@ -275,7 +275,10 @@ function createOverlayRange(
  * Adds a small red dot to each node group by id and returns the modified SVG string.
  * Intended as a lightweight visual overlay (no relayout).
  */
-export function renderBreakpointDots(nodeIds: string[], rawSvg: string): string {
+export function renderBreakpointDots(
+  nodeIds: string[],
+  rawSvg: string,
+): string {
   if (!nodeIds.length) return rawSvg;
 
   const svg = svgFromString(rawSvg);

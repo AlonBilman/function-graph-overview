@@ -7,10 +7,10 @@ import {
   getLightColorList,
 } from "../control-flow/colors";
 import type {
+  ToggleBreakpoint, // NEW
+  UpdateBreakpoints,
   UpdateCode,
   UpdateSettings,
-  UpdateBreakpoints,
-  ToggleBreakpoint,   // NEW
 } from "./messages.ts";
 import { OverviewViewProvider } from "./overview-view";
 
@@ -304,7 +304,10 @@ export async function activate(context: vscode.ExtensionContext) {
           bp.location.uri.toString() === uri,
       )
       .map((bp) => bp.location.range.start.line);
-    provider.postMessage<UpdateBreakpoints>({ tag: "updateBreakpoints", lines });
+    provider.postMessage<UpdateBreakpoints>({
+      tag: "updateBreakpoints",
+      lines,
+    });
   }
 
   // NEW: toggle helper for the active editor
@@ -324,7 +327,9 @@ export async function activate(context: vscode.ExtensionContext) {
       vscode.debug.removeBreakpoints(existing);
     } else {
       const location = new vscode.Location(uri, new vscode.Position(line, 0));
-      vscode.debug.addBreakpoints([new vscode.SourceBreakpoint(location, true)]);
+      vscode.debug.addBreakpoints([
+        new vscode.SourceBreakpoint(location, true),
+      ]);
     }
     // onDidChangeBreakpoints will fire and push updateBreakpoints; no need to post manually.
   }
@@ -333,10 +338,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.debug.onDidChangeBreakpoints(() => postBreakpointsForActiveEditor()),
   );
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(() => postBreakpointsForActiveEditor()),
+    vscode.window.onDidChangeActiveTextEditor(() =>
+      postBreakpointsForActiveEditor(),
+    ),
   );
   context.subscriptions.push(
-    vscode.window.onDidChangeTextEditorSelection(() => postBreakpointsForActiveEditor()),
+    vscode.window.onDidChangeTextEditorSelection(() =>
+      postBreakpointsForActiveEditor(),
+    ),
   );
 
   // Seed on activation

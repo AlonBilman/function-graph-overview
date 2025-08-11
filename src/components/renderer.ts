@@ -113,7 +113,7 @@ export class Renderer {
 
     // Build nodeIdToSyntaxNode map
     const nodeIdToSyntaxNode = new Map<string, SyntaxNode>();
-    if (builder && builder.nodeMapper && builder.nodeMapper.syntaxToNode) {
+    if (builder?.nodeMapper?.syntaxToNode) {
       for (const [
         syntax,
         nodeId,

@@ -78,12 +78,15 @@ function ensureBreakpointDot(nodeId: string) {
 }
 
 function clearAllBreakpointDots() {
-  document.querySelectorAll("svg g.node .breakpoint-dot").forEach((el) => el.remove());
+  const dots = document.querySelectorAll("svg g.node .breakpoint-dot");
+  for (const el of Array.from(dots)) {
+    el.remove();
+  }
 }
 
 function refreshBreakpointDots() {
   clearAllBreakpointDots();
-  if (!breakpointLines?.length) return;            // read prop directly
+  if (!breakpointLines?.length) return; // read prop directly
   for (const line of breakpointLines) {
     const nodes = lineToNodes.get(line);
     if (!nodes) continue;
@@ -184,7 +187,7 @@ function renderCode(
 
 // Keep dots in sync when only breakpointLines change (no graph re-render)
 $effect(() => {
-  void breakpointLines;       // ensure reactivity
+  void breakpointLines; // ensure reactivity
   refreshBreakpointDots();
 });
 
@@ -296,7 +299,14 @@ function onZoomClick(
 }
 
 // NEW: simple context menu state and handlers
-let ctxMenu = $state<{ visible: boolean; x: number; y: number; nodeId?: string; line?: number; has?: boolean }>({
+let ctxMenu = $state<{
+  visible: boolean;
+  x: number;
+  y: number;
+  nodeId?: string;
+  line?: number;
+  has?: boolean;
+}>({
   visible: false,
   x: 0,
   y: 0,
@@ -340,7 +350,12 @@ function onContextMenu(event: MouseEvent) {
 
 // Emit to parent; we’ll wire VS Code in the next step
 function onToggleBreakpointClick() {
-  if (!ctxMenu.visible || ctxMenu.nodeId === undefined || ctxMenu.line === undefined) return;
+  if (
+    !ctxMenu.visible ||
+    ctxMenu.nodeId === undefined ||
+    ctxMenu.line === undefined
+  )
+    return;
 
   dispatch("toggle-breakpoint", {
     nodeId: ctxMenu.nodeId,

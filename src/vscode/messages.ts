@@ -33,15 +33,10 @@ export type UpdateSettings = {
   colorList: ColorList;
 };
 
-export type MessageToWebview =
-  | UpdateCode
-  | UpdateSettings
-  | UpdateBreakpoints;
-export type MessageToVscode =
-  | NavigateTo
-  | ToggleBreakpoint; 
+export type MessageToWebview = UpdateCode | UpdateSettings | UpdateBreakpoints;
+export type MessageToVscode = NavigateTo | ToggleBreakpoint;
 
-// Ensure UpdateBreakpoints is included in MessageToWebview 
+// Ensure UpdateBreakpoints is included in MessageToWebview
 export type UpdateBreakpoints = {
   tag: "updateBreakpoints";
   lines: number[];
