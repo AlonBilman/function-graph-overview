@@ -11,13 +11,13 @@ export type NavigateTo = {
   functionNamesAndLocations?: { name: string; row: number; column: number }[];
 };
 
-// NEW: Webview -> VS Code
+// Webview -> VS Code
 export type ToggleBreakpoint = {
   tag: "toggleBreakpoint";
   line: number; // 0-based line number in the active editor
 };
 
-// Already used: VSCode -> Webview
+// VSCode -> Webview
 export type UpdateCode = {
   tag: "updateCode";
   offset: number;
@@ -35,12 +35,13 @@ export type UpdateSettings = {
 
 export type MessageToWebview =
   | UpdateCode
-  | UpdateSettings;
+  | UpdateSettings
+  | UpdateBreakpoints;
 export type MessageToVscode =
   | NavigateTo
-  | ToggleBreakpoint; // NEW
+  | ToggleBreakpoint; 
 
-// Ensure UpdateBreakpoints is included in MessageToWebview (you already use it)
+// Ensure UpdateBreakpoints is included in MessageToWebview 
 export type UpdateBreakpoints = {
   tag: "updateBreakpoints";
   lines: number[];
