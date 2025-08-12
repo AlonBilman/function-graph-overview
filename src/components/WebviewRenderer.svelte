@@ -30,7 +30,7 @@ interface Props {
   flatSwitch?: boolean;
   highlight?: boolean;
   showRegions?: boolean;
-  breakpointLines?: number[]; // NEW
+  breakpointLines?: number[];
 }
 
 let {
@@ -42,11 +42,26 @@ let {
   flatSwitch = true,
   highlight = true,
   showRegions = false,
-  breakpointLines = [], // stays reactive as a prop
+  breakpointLines = [], 
 }: Props = $props();
 
 // Map line -> nodeIds (built per render)
 let lineToNodes: Map<number, string[]> = new Map();
+
+function getLineFromOffset(offset: number, code: string): number {
+  if (offset < 0 || offset > code.length) {
+    return -1; // Invalid offset
+  }
+  
+  let line = 0;
+  for (let i = 0; i < offset && i < code.length; i++) {
+    if (code[i] === '\n') {
+      line++;
+    }
+  }
+  
+  return line; // 0-based line number
+}
 
 function rebuildLineIndex() {
   const map = new Map<number, string[]>();
@@ -341,22 +356,10 @@ function onContextMenu(event: MouseEvent) {
   if (!target.classList.contains("node")) return;
 
   event.preventDefault();
-
-  const nodeId = (target as HTMLElement).id;
-  const syntax = nodeIdToSyntaxNode.get(nodeId);
-  if (!syntax) return;
-
-  const line = syntax.startPosition.row; // 0-based line
-  //const col = syntax.startPosition.column;
-  const code = syntax.text;
-
-  // Debug log: nodeId, line, column, code
-  console.log(`[CFG] Node clicked:`, {
-    nodeId,
-    line,
-    code,
-    syntax,
-  });
+  const nodeId = target.id;
+  const offset = getNodeOffset(nodeId);
+  const line = getLineFromOffset(offset, codeAndOffset?.code ?? "");
+  console.log("Context menu for node:", nodeId, "line:", line);
 
   const has = breakpointLines?.includes(line) ?? false;
 
