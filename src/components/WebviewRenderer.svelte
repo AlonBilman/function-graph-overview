@@ -42,7 +42,7 @@ let {
   flatSwitch = true,
   highlight = true,
   showRegions = false,
-  breakpointLines = [], 
+  breakpointLines = [],
 }: Props = $props();
 
 // Map line -> nodeIds (built per render)
@@ -52,25 +52,41 @@ function getLineFromOffset(offset: number, code: string): number {
   if (offset < 0 || offset > code.length) {
     return -1; // Invalid offset
   }
-  
+
   let line = 0;
   for (let i = 0; i < offset && i < code.length; i++) {
-    if (code[i] === '\n') {
+    if (code[i] === "\n") {
       line++;
     }
   }
-  
+
   return line; // 0-based line number
 }
 
 function rebuildLineIndex() {
   const map = new Map<number, string[]>();
-  for (const [nodeId, sn] of nodeIdToSyntaxNode.entries()) {
-    const line = sn.startPosition.row; // 0-based
+
+  // Get all nodeIds from the current SVG DOM
+  const nodeElements = document.querySelectorAll("svg g.node");
+
+  for (const element of nodeElements) {
+    const nodeId = element.id;
+    if (!nodeId) continue;
+
+    // Get the offset for this node
+    const offset = getNodeOffset(nodeId);
+    if (offset === undefined) continue;
+
+    // Convert offset to line number
+    const line = getLineFromOffset(offset, codeAndOffset?.code ?? "");
+    if (line < 0) continue; // Invalid line
+
+    // Add nodeId to the line mapping
     const arr = map.get(line) ?? [];
     arr.push(nodeId);
     map.set(line, arr);
   }
+
   lineToNodes = map;
 }
 
@@ -193,9 +209,11 @@ function renderCode(
   };
   nodeIdToSyntaxNode = renderResult.nodeIdToSyntaxNode;
 
-  // Build per-render index and draw dots after the SVG is mounted
-  rebuildLineIndex();
-  queueMicrotask(refreshBreakpointDots);
+  // Queue both for after SVG is mounted
+  queueMicrotask(() => {
+    rebuildLineIndex();
+    refreshBreakpointDots();
+  });
 
   return renderResult.svg;
 }
@@ -263,12 +281,16 @@ function onZoomClick(
   if (!target.classList.contains("node")) {
     return;
   }
-  //still, this is experimental and I need to find a better way to do this.
   let functions: { name: string; row: number; column: number }[] = [];
-  //we want it work only on detailed mode  
-  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id) && !simplify && target.classList.contains("functionCall")) {
+  //we want it work only on detailed mode
+  if (
+    event.ctrlKey &&
+    nodeIdToSyntaxNode.has(target.id) &&
+    !simplify &&
+    target.classList.contains("functionCall")
+  ) {
     const syntaxNode = nodeIdToSyntaxNode.get(target.id);
-    if (syntaxNode ) {
+    if (syntaxNode) {
       functions =
         extractFunctionNamesAndLocation(
           syntaxNode,
@@ -305,23 +327,21 @@ function onZoomClick(
       }
     }
   }
-  if(target.classList.contains("functionCall")){
+  if (target.classList.contains("functionCall")) {
     dispatch("node-clicked", {
-    node: target.id,
-    withControl: event.ctrlKey,
-    offset: getNodeOffset(target.id) ?? undefined,
-    functionNamesAndLocations: functions,
-  });
-  }
-  else{
+      node: target.id,
+      withControl: event.ctrlKey,
+      offset: getNodeOffset(target.id) ?? undefined,
+      functionNamesAndLocations: functions,
+    });
+  } else {
     dispatch("node-clicked", {
-    node: target.id,
-    withControl: false,
-    offset: getNodeOffset(target.id) ?? undefined,
-    functionNamesAndLocations: functions,
-  });
+      node: target.id,
+      withControl: false,
+      offset: getNodeOffset(target.id) ?? undefined,
+      functionNamesAndLocations: functions,
+    });
   }
-    
 }
 
 // NEW: simple context menu state and handlers
@@ -356,10 +376,10 @@ function onContextMenu(event: MouseEvent) {
   if (!target.classList.contains("node")) return;
 
   event.preventDefault();
+
   const nodeId = target.id;
   const offset = getNodeOffset(nodeId);
-  const line = getLineFromOffset(offset, codeAndOffset?.code ?? "");
-  console.log("Context menu for node:", nodeId, "line:", line);
+  const line = getLineFromOffset(offset ?? 0, codeAndOffset?.code ?? "");
 
   const has = breakpointLines?.includes(line) ?? false;
 
@@ -373,7 +393,6 @@ function onContextMenu(event: MouseEvent) {
   };
 }
 
-// Emit to parent; we’ll wire VS Code in the next step
 function onToggleBreakpointClick() {
   if (
     !ctxMenu.visible ||
