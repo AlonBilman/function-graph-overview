@@ -1,12 +1,8 @@
-import { beforeAll, expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import { extractFunctionNamesAndLocation, removeDuplicateCalls } from "../control-flow/common-patterns.ts";
-import { initParsers, iterFunctions } from "../file-parsing/vite.ts";
+import { iterFunctions } from "../file-parsing/bun.ts";
 
-// Initialize parsers once before all tests
-beforeAll(async () => {
-  await initParsers();
-});
 
 function walkAllNodes(node: SyntaxNode, visit: (node: SyntaxNode) => void) {
   visit(node);
