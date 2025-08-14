@@ -25,6 +25,9 @@ async function main() {
       dot: {
         type: "string",
       },
+      simplify: {
+        type: "boolean",
+      },
     },
   });
 
@@ -53,7 +56,10 @@ async function main() {
   const colorScheme = await getColorScheme(values.colors);
 
   const graphviz = await Graphviz.load();
-  const dot = graphToDot(cfg, false, colorScheme);
+
+  const simplify =
+    typeof values.simplify === "boolean" ? values.simplify : true;
+  const dot = graphToDot(cfg, false, simplify, colorScheme);
 
   if (values.dot) {
     await Bun.write(values.dot, dot);

@@ -17,7 +17,6 @@ import { memoizeFunction } from "./caching.ts";
 
 export interface RenderOptions {
   readonly simplify: boolean;
-  readonly simplifyLevel: "full" | "semi" | "none";
   readonly verbose: boolean;
   readonly trim: boolean;
   readonly flatSwitch: boolean;
@@ -49,10 +48,8 @@ export class Renderer {
     offsetToNode: (offset: number) => string;
     nodeIdToSyntaxNode: Map<string, SyntaxNode>;
   } {
-    let { dot, svg, getNodeOffset, offsetToNode, nodeIdToSyntaxNode } = this.memoizedRenderStatic(
-      functionSyntax,
-      language,
-    );
+    let { dot, svg, getNodeOffset, offsetToNode, nodeIdToSyntaxNode } =
+      this.memoizedRenderStatic(functionSyntax, language);
 
     // We want to allow the function to move without changing (in case of code
     // edits in other functions).
@@ -110,14 +107,17 @@ export class Renderer {
       ? overlayBuilder.getAttrMerger(mergeNodeAttrs)
       : mergeNodeAttrs;
     if (this.options.simplify) {
-      cfg = simplifyCFG(cfg, nodeAttributeMerger, this.options.simplifyLevel);
+      cfg = simplifyCFG(cfg, nodeAttributeMerger);
     }
     cfg = remapNodeTargets(cfg);
 
-    // Build nodeIdToSyntaxNode map 
+    // Build nodeIdToSyntaxNode map
     const nodeIdToSyntaxNode = new Map<string, SyntaxNode>();
-    if (builder && builder.nodeMapper && builder.nodeMapper.syntaxToNode) {
-      for (const [syntax, nodeId] of builder.nodeMapper.syntaxToNode.entries()) {
+    if (builder?.nodeMapper?.syntaxToNode) {
+      for (const [
+        syntax,
+        nodeId,
+      ] of builder.nodeMapper.syntaxToNode.entries()) {
         nodeIdToSyntaxNode.set(nodeId, syntax);
       }
     }
@@ -126,6 +126,7 @@ export class Renderer {
     const dot = graphToDot(
       cfg,
       this.options.verbose,
+      this.options.simplify,
       listToScheme(this.colorList),
     );
 

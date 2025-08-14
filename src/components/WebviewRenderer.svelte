@@ -13,6 +13,7 @@ import { type RenderOptions, Renderer } from "./renderer.ts";
 import { type Parsers, initialize as initializeUtils } from "./utils";
 type CodeAndOffset = { code: string; offset: number; language: Language };
 import { extractFunctionNamesAndLocation } from "../control-flow/common-patterns";
+import { renderBreakpointDots } from "../control-flow/overlay.ts";
 let parsers: Parsers;
 let graphviz: Graphviz;
 let getNodeOffset: (nodeId: string) => number | undefined = () => undefined;
@@ -25,11 +26,11 @@ interface Props {
   codeAndOffset?: CodeAndOffset | null;
   verbose?: boolean;
   simplify?: boolean;
-  simplifyLevel?: "full" | "semi" | "none";
   trim?: boolean;
   flatSwitch?: boolean;
   highlight?: boolean;
   showRegions?: boolean;
+  breakpointLines?: number[];
 }
 
 let {
@@ -37,12 +38,92 @@ let {
   codeAndOffset = null,
   verbose = false,
   simplify = true,
-  simplifyLevel = "full",
   trim = true,
   flatSwitch = true,
   highlight = true,
   showRegions = false,
+  breakpointLines = [],
 }: Props = $props();
+
+// Map line -> nodeIds (built per render)
+let lineToNodes: Map<number, string[]> = new Map();
+
+function getLineFromOffset(offset: number, code: string): number {
+  if (offset < 0 || offset > code.length) {
+    return -1; // Invalid offset
+  }
+
+  let line = 0;
+  for (let i = 0; i < offset && i < code.length; i++) {
+    if (code[i] === "\n") {
+      line++;
+    }
+  }
+
+  return line; // 0-based line number
+}
+
+function rebuildLineIndex() {
+  const map = new Map<number, string[]>();
+
+  // Get all nodeIds from the current SVG DOM
+  const nodeElements = document.querySelectorAll("svg g.node");
+
+  for (const element of nodeElements) {
+    const nodeId = element.id;
+    if (!nodeId) continue;
+
+    // Get the offset for this node
+    const offset = getNodeOffset(nodeId);
+    if (offset === undefined) continue;
+
+    // Convert offset to line number
+    const line = getLineFromOffset(offset, codeAndOffset?.code ?? "");
+    if (line < 0) continue; // Invalid line
+
+    // Add nodeId to the line mapping
+    const arr = map.get(line) ?? [];
+    arr.push(nodeId);
+    map.set(line, arr);
+  }
+
+  lineToNodes = map;
+}
+
+function ensureBreakpointDot(nodeId: string) {
+  const g = document.getElementById(nodeId) as SVGGElement | null;
+  if (!g) return;
+  if (g.querySelector(".breakpoint-dot")) return;
+  const polygon = g.querySelector("polygon") as SVGGraphicsElement | null;
+  if (!polygon) return;
+  const box = polygon.getBBox();
+
+  const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  dot.setAttribute("class", "breakpoint-dot");
+  dot.setAttribute("r", "5");
+  dot.setAttribute("fill", "#e51400");
+  dot.setAttribute("stroke", "none");
+  dot.setAttribute("cx", String(box.x + 8));
+  dot.setAttribute("cy", String(box.y + 8));
+  g.appendChild(dot);
+}
+
+function clearAllBreakpointDots() {
+  const dots = document.querySelectorAll("svg g.node .breakpoint-dot");
+  for (const el of Array.from(dots)) {
+    el.remove();
+  }
+}
+
+function refreshBreakpointDots() {
+  clearAllBreakpointDots();
+  if (!breakpointLines?.length) return; // read prop directly
+  for (const line of breakpointLines) {
+    const nodes = lineToNodes.get(line);
+    if (!nodes) continue;
+    for (const nodeId of nodes) ensureBreakpointDot(nodeId);
+  }
+}
 
 const getRenderer = memoizeFunction({
   func: (options: RenderOptions, colorList: ColorList, graphviz: Graphviz) =>
@@ -111,23 +192,37 @@ function renderCode(
 
   const renderer = getRenderer(options, colorList, graphviz);
   const renderResult = renderer.render(functionSyntax, language, cursorOffset);
+
   getNodeOffset = (nodeId: string) => {
-    if (typeof renderResult.getNodeOffset === 'function') {
+    if (typeof renderResult.getNodeOffset === "function") {
       const val = renderResult.getNodeOffset(nodeId);
       return val !== undefined ? val : undefined;
     }
     return undefined;
   };
   offsetToNode = (offset: number) => {
-    if (typeof renderResult.offsetToNode === 'function') {
+    if (typeof renderResult.offsetToNode === "function") {
       const val = renderResult.offsetToNode(offset);
       return val !== undefined ? val : undefined;
     }
     return undefined;
   };
   nodeIdToSyntaxNode = renderResult.nodeIdToSyntaxNode;
+
+  // Queue both for after SVG is mounted
+  queueMicrotask(() => {
+    rebuildLineIndex();
+    refreshBreakpointDots();
+  });
+
   return renderResult.svg;
 }
+
+// Keep dots in sync when only breakpointLines change (no graph re-render)
+$effect(() => {
+  void breakpointLines; // ensure reactivity
+  refreshBreakpointDots();
+});
 
 function renderWrapper(
   codeAndOffset: CodeAndOffset | null,
@@ -186,12 +281,20 @@ function onZoomClick(
   if (!target.classList.contains("node")) {
     return;
   }
-  //still, this is experimental and I need to find a better way to do this.
   let functions: { name: string; row: number; column: number }[] = [];
-  if (event.ctrlKey && nodeIdToSyntaxNode.has(target.id)) {
+  //we want it work only on detailed mode
+  if (
+    event.ctrlKey &&
+    nodeIdToSyntaxNode.has(target.id) &&
+    !simplify &&
+    target.classList.contains("functionCall")
+  ) {
     const syntaxNode = nodeIdToSyntaxNode.get(target.id);
     if (syntaxNode) {
-      functions = extractFunctionNamesAndLocation(syntaxNode, ` 
+      functions =
+        extractFunctionNamesAndLocation(
+          syntaxNode,
+          ` 
         (parenthesized_expression
           (call_expression) @call) 
 
@@ -201,25 +304,119 @@ function onZoomClick(
 
         (binary_expression
           (call_expression) @call)
-      `, "call") ?? [];
-      if(!functions.length) {
-        functions = extractFunctionNamesAndLocation(syntaxNode, `
+          (call_expression) @call
+  
+        (update_expression
+          (call_expression) @call)
+    
+        (assignment_expression
+          right: (call_expression) @call)
+      `,
+          "call",
+        ) ?? [];
+      if (!functions.length) {
+        functions =
+          extractFunctionNamesAndLocation(
+            syntaxNode,
+            `
         (call_expression) 
           function: (identifier) @call
-        `, "call") ?? [];
+        `,
+            "call",
+          ) ?? [];
       }
     }
   }
-  dispatch("node-clicked", {
-    node: target.id,
-    withControl: event.ctrlKey,
-    offset: getNodeOffset(target.id) ?? undefined,
-    functionNamesAndLocations: functions,
-  });
+  if (target.classList.contains("functionCall")) {
+    dispatch("node-clicked", {
+      node: target.id,
+      withControl: event.ctrlKey,
+      offset: getNodeOffset(target.id) ?? undefined,
+      functionNamesAndLocations: functions,
+    });
+  } else {
+    dispatch("node-clicked", {
+      node: target.id,
+      withControl: false,
+      offset: getNodeOffset(target.id) ?? undefined,
+      functionNamesAndLocations: functions,
+    });
+  }
 }
+
+// NEW: simple context menu state and handlers
+let ctxMenu = $state<{
+  visible: boolean;
+  x: number;
+  y: number;
+  nodeId?: string;
+  line?: number;
+  has?: boolean;
+}>({
+  visible: false,
+  x: 0,
+  y: 0,
+});
+
+function hideContextMenu() {
+  ctxMenu = { visible: false, x: 0, y: 0 };
+}
+
+// Find node under cursor, compute its first line, and show menu
+function onContextMenu(event: MouseEvent) {
+  let target: Element = event.target as Element;
+  while (
+    target.tagName !== "div" &&
+    target.tagName !== "svg" &&
+    !target.classList.contains("node") &&
+    target.parentElement !== null
+  ) {
+    target = target.parentElement;
+  }
+  if (!target.classList.contains("node")) return;
+
+  event.preventDefault();
+
+  const nodeId = target.id;
+  const offset = getNodeOffset(nodeId);
+  const line = getLineFromOffset(offset ?? 0, codeAndOffset?.code ?? "");
+
+  const has = breakpointLines?.includes(line) ?? false;
+
+  ctxMenu = {
+    visible: true,
+    x: event.clientX,
+    y: event.clientY,
+    nodeId,
+    line,
+    has,
+  };
+}
+
+function onToggleBreakpointClick() {
+  if (
+    !ctxMenu.visible ||
+    ctxMenu.nodeId === undefined ||
+    ctxMenu.line === undefined
+  )
+    return;
+
+  dispatch("toggle-breakpoint", {
+    nodeId: ctxMenu.nodeId,
+    line: ctxMenu.line,
+  });
+
+  hideContextMenu();
+}
+
+// Close menu on outside click
+document.addEventListener("click", () => {
+  if (ctxMenu.visible) hideContextMenu();
+});
 
 let pzComp: PanzoomComp;
 let enableZoom: boolean = $state(false);
+
 const panAfterRender: Action = () => {
   if (functionChanged) {
     return;
@@ -234,6 +431,7 @@ const panAfterRender: Action = () => {
 };
 </script>
 <div class="editor-controls">
+  <input type="checkbox" id="simplify-toggle" bind:checked={simplify}/> <label for="simplify">Simplify</label>
   <input type="checkbox" id="panzoom" bind:checked={enableZoom}/> <label for="panzoom">Pan & Zoom</label>
 </div>
 <PanzoomComp bind:this={pzComp} onclick={onZoomClick} disabled={!enableZoom}>
@@ -241,12 +439,11 @@ const panAfterRender: Action = () => {
   <!-- I don't know how to make this part accessible. PRs welcome! -->
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="graph">
+  <div class="graph" oncontextmenu={onContextMenu}>
     {#await asyncRenderWrapper(
       codeAndOffset,
       {
         simplify,
-        simplifyLevel,
         verbose,
         trim,
         flatSwitch,
@@ -263,6 +460,27 @@ const panAfterRender: Action = () => {
 {/await}
 </PanzoomComp>
 
+{#if ctxMenu.visible}
+  <button
+    type="button"
+    class="context-menu"
+    style={"top:" + ctxMenu.y + "px;left:" + ctxMenu.x + "px"}
+    aria-label={ctxMenu.has ? "Remove Breakpoint" : "Add Breakpoint"}
+    onclick={e => { e.stopPropagation(); onToggleBreakpointClick(); }}
+    onkeydown={e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onToggleBreakpointClick();
+      }
+    }}
+  >
+    {#if ctxMenu.has}
+      Remove Breakpoint
+    {:else}
+      Add Breakpoint
+    {/if}
+  </button>
+{/if}
 
 <style>
   .graph {
@@ -277,6 +495,20 @@ const panAfterRender: Action = () => {
   .svg-wrapper {
       width: 100%;
       height: 100%;
+  }
+
+  .context-menu {
+    position: fixed;
+    z-index: 10000;
+    background: var(--vscode-editor-background, #2b2d30);
+    color: var(--vscode-editor-foreground, #ddd);
+    border: 1px solid var(--vscode-editor-foreground, #555);
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    font-size: 12px;
   }
 
   :root {

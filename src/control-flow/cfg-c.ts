@@ -101,7 +101,10 @@ function defaultProcessStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
   return { entry: newNode, exit: newNode };
 }
 
-function processExpressionStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
+function processExpressionStatement(
+  syntax: SyntaxNode,
+  ctx: Context,
+): BasicBlock {
   const hasCall = matchExistsIn(syntax, "(call_expression) @call");
   if (hasCall) {
     const callNode = ctx.builder.addNode(
@@ -115,7 +118,10 @@ function processExpressionStatement(syntax: SyntaxNode, ctx: Context): BasicBloc
   return defaultProcessStatement(syntax, ctx);
 }
 
-function processDeclarationStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
+function processDeclarationStatement(
+  syntax: SyntaxNode,
+  ctx: Context,
+): BasicBlock {
   return processExpressionStatement(syntax, ctx);
 }
 

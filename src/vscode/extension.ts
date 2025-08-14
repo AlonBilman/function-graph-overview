@@ -6,7 +6,12 @@ import {
   getDarkColorList,
   getLightColorList,
 } from "../control-flow/colors";
-import type { UpdateCode, UpdateSettings } from "./messages.ts";
+import type {
+  ToggleBreakpoint, // NEW
+  UpdateBreakpoints,
+  UpdateCode,
+  UpdateSettings,
+} from "./messages.ts";
 import { OverviewViewProvider } from "./overview-view";
 
 /* Disable a specific oxlint check until https://github.com/oxc-project/oxc/issues/10106
@@ -64,13 +69,11 @@ function isThemeDark(): boolean {
   return theme.kind === vscode.ColorThemeKind.Dark;
 }
 
-type SimplifyLevel = "full" | "semi" | "none";
-
 type Settings = {
   flatSwitch: boolean;
-  simplifyLevel: SimplifyLevel;
   highlightCurrentNode: boolean;
   colorList: ColorList;
+  simplify: boolean;
 };
 type ColorSchemeOptions = "Light" | "Dark" | "Custom" | "System";
 function loadSettings(): Settings {
@@ -98,12 +101,11 @@ function loadSettings(): Settings {
         return getLightColorList();
     }
   })();
-
   return {
     flatSwitch: config.get("flatSwitch") ?? true,
-     simplifyLevel: config.get("simplifyLevel", "full") as SimplifyLevel,
     highlightCurrentNode: config.get("highlightCurrentNode") ?? true,
     colorList: colorList,
+    simplify: config.get("simplify") ?? true,
   };
 }
 
@@ -141,7 +143,15 @@ export async function activate(context: vscode.ExtensionContext) {
   const provider = new OverviewViewProvider(
     context.extensionUri,
     isThemeDark(),
-    { navigateTo: ({ offset, withControl, functionNamesAndLocations }) => onNodeClick(offset, withControl, functionNamesAndLocations) },
+    {
+      navigateTo: ({ offset, withControl, functionNamesAndLocations }) =>
+        onNodeClick(offset, withControl, functionNamesAndLocations),
+
+      // NEW: toggle breakpoint requested from the webview
+      toggleBreakpoint: ({ line }: ToggleBreakpoint) => {
+        toggleBreakpointAtActiveEditorLine(line);
+      },
+    },
   );
 
   context.subscriptions.push(
@@ -162,54 +172,54 @@ export async function activate(context: vscode.ExtensionContext) {
     if (!editor) return;
     // In order to match the VS Code API
     // even though it doesnt exactly match the text editor's line numbers
-    row-=1;
+    row -= 1;
     const pos = new vscode.Position(row, col);
     editor.selection = new vscode.Selection(pos, pos);
-    editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+    editor.revealRange(
+      new vscode.Range(pos, pos),
+      vscode.TextEditorRevealType.InCenter,
+    );
   }
 
-  async function onNodeClick(offset: number, withControl: boolean, 
-    functionNamesAndLocations?: { name: string; row: number; column: number }[]): Promise<void> {
+  async function onNodeClick(
+    offset: number,
+    withControl: boolean,
+    functionNamesAndLocations?: { name: string; row: number; column: number }[],
+  ): Promise<void> {
     if (withControl) {
       try {
-          moveCursorAndReveal(offset);
-          if(functionNamesAndLocations && functionNamesAndLocations.length > 0) {
-            //Prepare QuickPick items with additional metadata (name, row, column) so we can
-            //access the full function info later after user selection, instead of parsing strings. 
-            const quickPickItems: FunctionPickItem[] = functionNamesAndLocations.map(fn => ({
+        moveCursorAndReveal(offset);
+        if (functionNamesAndLocations && functionNamesAndLocations.length > 0) {
+          //Prepare QuickPick items with additional metadata (name, row, column) so we can
+          //access the full function info later after user selection, instead of parsing strings.
+          const quickPickItems: FunctionPickItem[] =
+            functionNamesAndLocations.map((fn) => ({
               label: fn.name,
               description: `(row: ${fn.row}, col: ${fn.column})`,
               name: fn.name,
               row: fn.row,
-              column: fn.column
+              column: fn.column,
             }));
-          
-          const selection = await vscode.window.showQuickPick( 
-            quickPickItems,
-            {   
-              placeHolder: "What function do you want to go to?",
-              canPickMany: false
-            }
-          );
+
+          const selection = await vscode.window.showQuickPick(quickPickItems, {
+            placeHolder: "What function do you want to go to?",
+            canPickMany: false,
+          });
 
           if (selection) {
             // Ok! now the magic happens — let's jump to the function call and mimic F12.
             jumpToCursor(selection.row, selection.column);
-           
           } else {
             vscode.window.showInformationMessage("No function selected.");
             return;
           }
-          
         }
-        vscode.commands.executeCommand('editor.action.revealDefinition');
+        vscode.commands.executeCommand("editor.action.revealDefinition");
         focusEditor();
-       
       } catch (error) {
         console.error("Error during QuickPick or command execution:", error);
       }
-    }
-    else {
+    } else {
       moveCursorAndReveal(offset);
       focusEditor();
     }
@@ -223,7 +233,7 @@ export async function activate(context: vscode.ExtensionContext) {
           provider.postMessage<UpdateSettings>({
             tag: "updateSettings",
             flatSwitch: settings.flatSwitch,
-            simplifyLevel: settings.simplifyLevel,
+            simplify: settings.simplify,
             highlightCurrentNode: settings.highlightCurrentNode,
             colorList: settings.colorList,
           });
@@ -237,8 +247,8 @@ export async function activate(context: vscode.ExtensionContext) {
       const settings = loadSettings();
       provider.postMessage<UpdateSettings>({
         tag: "updateSettings",
+        simplify: settings.simplify,
         flatSwitch: settings.flatSwitch,
-        simplifyLevel: settings.simplifyLevel,
         highlightCurrentNode: settings.highlightCurrentNode,
         colorList: settings.colorList,
       });
@@ -266,6 +276,9 @@ export async function activate(context: vscode.ExtensionContext) {
           offset,
           language,
         });
+
+        // NEW: keep breakpoint dots in sync when cursor moves or user clicks a node
+        postBreakpointsForActiveEditor();
       },
     ),
   );
@@ -279,6 +292,64 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(command, commandHandler),
   );
+
+  function postBreakpointsForActiveEditor() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+    const uri = editor.document.uri.toString();
+    const lines = vscode.debug.breakpoints
+      .filter(
+        (bp): bp is vscode.SourceBreakpoint =>
+          bp instanceof vscode.SourceBreakpoint &&
+          bp.location.uri.toString() === uri,
+      )
+      .map((bp) => bp.location.range.start.line);
+    provider.postMessage<UpdateBreakpoints>({
+      tag: "updateBreakpoints",
+      lines,
+    });
+  }
+
+  // NEW: toggle helper for the active editor
+  function toggleBreakpointAtActiveEditorLine(line: number) {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) return;
+
+    const uri = editor.document.uri;
+    const existing = vscode.debug.breakpoints.filter(
+      (bp): bp is vscode.SourceBreakpoint =>
+        bp instanceof vscode.SourceBreakpoint &&
+        bp.location.uri.toString() === uri.toString() &&
+        bp.location.range.start.line === line,
+    );
+
+    if (existing.length) {
+      vscode.debug.removeBreakpoints(existing);
+    } else {
+      const location = new vscode.Location(uri, new vscode.Position(line, 0));
+      vscode.debug.addBreakpoints([
+        new vscode.SourceBreakpoint(location, true),
+      ]);
+    }
+    // onDidChangeBreakpoints will fire and push updateBreakpoints; no need to post manually.
+  }
+
+  context.subscriptions.push(
+    vscode.debug.onDidChangeBreakpoints(() => postBreakpointsForActiveEditor()),
+  );
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() =>
+      postBreakpointsForActiveEditor(),
+    ),
+  );
+  context.subscriptions.push(
+    vscode.window.onDidChangeTextEditorSelection(() =>
+      postBreakpointsForActiveEditor(),
+    ),
+  );
+
+  // Seed on activation
+  postBreakpointsForActiveEditor();
 }
 
 // This method is called when your extension is deactivated

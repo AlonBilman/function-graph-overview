@@ -270,3 +270,34 @@ function createOverlayRange(
   }
   return lookup;
 }
+
+/**
+ * Adds a small red dot to each node group by id and returns the modified SVG string.
+ * Intended as a lightweight visual overlay (no relayout).
+ */
+export function renderBreakpointDots(
+  nodeIds: string[],
+  rawSvg: string,
+): string {
+  if (!nodeIds.length) return rawSvg;
+
+  const svg = svgFromString(rawSvg);
+
+  for (const nodeId of nodeIds) {
+    const node = svg.findOne(`#${nodeId}`) as Container | null;
+    if (!node) continue;
+
+    // Prefer the polygon’s bbox for a stable corner inside the node
+    const poly = node.findOne("polygon") as Element | null;
+    const bbox = (poly ?? node).bbox(); // absolute coordinates
+
+    // Create a small red dot and position inside the node near top-left
+    const dot = svg.circle(10).fill("#e51400").stroke({ width: 0 });
+    dot.center(bbox.x + 8, bbox.y + 8);
+
+    // Attach to the node group so it stays with the node
+    node.add(dot);
+  }
+
+  return svg.svg();
+}

@@ -43,7 +43,6 @@ declare global {
   import * as jetbrainsDarkTheme from "./defaultDark.json";
   import type { MessageToWebview, NavigateTo } from "../../vscode/messages.ts";
 
-  type SimplifyLevel = "full" | "semi" | "none";
 
   /**
    * Are we running in a VSCode WebView?
@@ -51,7 +50,7 @@ declare global {
   const vscode =
     typeof acquireVsCodeApi !== "undefined" ? acquireVsCodeApi() : undefined;
 
-  let simplifyLevel = $state<SimplifyLevel>("full");
+  let simplify = $state(true);
   let flatSwitch = $state(true);
   let highlight = $state(true);
 
@@ -78,7 +77,7 @@ declare global {
   })());
 
   type Config = {
-    simplifyLevel?: SimplifyLevel;
+    simplify?: boolean;
     flatSwitch?: boolean;
     highlight?: boolean;
     colorList?: ColorList;
@@ -92,7 +91,7 @@ declare global {
 
   class StateHandler {
     private state: State = {
-      config: { simplifyLevel: "full", flatSwitch: true, highlight: true },
+      config: { simplify: true, flatSwitch: true, highlight: true },
     };
     private navigateToHandlers: ((offset: number, withControl: boolean, 
     functionNamesAndLocations?: { name: string; row: number; column: number }[]) => void)[] = [];
@@ -102,7 +101,7 @@ declare global {
       Object.assign(this.state, state);
       this.state.config = config;
       
-      simplifyLevel = state.config?.simplifyLevel ?? simplifyLevel;
+      simplify = Boolean(this.state.config.simplify);
       flatSwitch = Boolean(this.state.config.flatSwitch);
       highlight = Boolean(this.state.config.highlight);
 
@@ -132,14 +131,12 @@ declare global {
     }
   }
 
+  let breakpointLines: number[] = $state([]); // NEW
+
   function initVSCode(stateHandler: StateHandler): void {
-    if (!vscode) {
-      // We're not running in VSCode
-      return;
-    }
-    // Handle messages sent from the extension to the webview
-    window.addEventListener("message", (event: { data: MessageToWebview }) => {
-      const message = event.data; // The json data that the extension sent
+    if (!vscode) return;
+    window.addEventListener("message", (event) => {
+      const message = event.data;
       switch (message.tag) {
         case "updateCode": {
           stateHandler.update({
@@ -151,12 +148,16 @@ declare global {
         }
         case "updateSettings":
           flatSwitch = message.flatSwitch;
-          simplifyLevel = message.simplifyLevel;
+          simplify = message.simplify;
           highlight = message.highlightCurrentNode;
           colorList = message.colorList;
           document.body.style.backgroundColor = colorList.find(
             ({ name }) => name === "graph.background",
           ).hex;
+          break;
+        case "updateBreakpoints":
+          breakpointLines = Array.isArray(message.lines) ? message.lines : [];
+          break;
       }
     });
 
@@ -182,7 +183,7 @@ declare global {
     window.JetBrains ??= {};
     window.JetBrains.ToWebview = {
       setSimplify: (flag: boolean) =>
-        stateHandler.update({ config: { simplifyLevel: flag ? "full" : "none" } }),
+        stateHandler.update({ config: { simplify: flag } }),
       setFlatSwitch: (flag: boolean) =>
         stateHandler.update({ config: { flatSwitch: flag } }),
       setHighlight: (flag: boolean) =>
@@ -215,22 +216,18 @@ declare global {
 </script>
 
 <main>
-    <div class="simplification-controls">
-      <label for="graph-detail">Graph Detail:</label>
-      <select id="graph-detail" bind:value={simplifyLevel}>
-        <option value="none">Detailed</option>
-        <option value="semi">Simplified</option>
-        <option value="full">Compact</option>
-      </select>
-  </div>
   <WebviewRenderer
     {codeAndOffset}
     {colorList}
-    simplify={simplifyLevel !== "none"}
-    {simplifyLevel}
+    {simplify}
     {flatSwitch}
     {highlight}
+    breakpointLines={breakpointLines}
     on:node-clicked={navigateTo}
+    on:toggle-breakpoint={(e) => {
+      const { line } = e.detail;
+      vscode?.postMessage<MessageToVscode>({ tag: "toggleBreakpoint", line });
+    }}
   />
 </main>
 
