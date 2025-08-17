@@ -190,16 +190,48 @@ export async function activate(context: vscode.ExtensionContext) {
       try {
         moveCursorAndReveal(offset);
         if (functionNamesAndLocations && functionNamesAndLocations.length > 0) {
+          // Narrow the candidate functions to those closest to the clicked offset
+          // (prefer same row, then same row+column). This prevents cases where the
+          // webview sent many call-sites from a large containing node (eg. an if
+          // block) and the QuickPick shows every call until function end.
+          const editor = vscode.window.activeTextEditor;
+          let candidates = functionNamesAndLocations;
+          if (editor) {
+            try {
+              const pos = editor.document.positionAt(offset);
+              const clickedRow = pos.line + 1; // incoming rows are 1-based
+              const clickedCol = pos.character + 1; // incoming cols are 1-based
+
+              // Prefer exact same row + column matches (e.g., precise calls)
+              const exact = functionNamesAndLocations.filter(
+                (fn) => fn.row === clickedRow && fn.column === clickedCol,
+              );
+              if (exact.length > 0) {
+                candidates = exact;
+              } else {
+                // Next prefer same-row matches (most common case for single-call-if)
+                const sameRow = functionNamesAndLocations.filter(
+                  (fn) => fn.row === clickedRow,
+                );
+                if (sameRow.length > 0) {
+                  candidates = sameRow;
+                }
+              }
+            } catch (e) {
+              // positionAt can throw for invalid offsets; fallback to full list
+              console.error("Error computing click position for narrowing:", e);
+            }
+          }
+
           //Prepare QuickPick items with additional metadata (name, row, column) so we can
           //access the full function info later after user selection, instead of parsing strings.
-          const quickPickItems: FunctionPickItem[] =
-            functionNamesAndLocations.map((fn) => ({
-              label: fn.name,
-              description: `(row: ${fn.row}, col: ${fn.column})`,
-              name: fn.name,
-              row: fn.row,
-              column: fn.column,
-            }));
+          const quickPickItems: FunctionPickItem[] = candidates.map((fn) => ({
+            label: fn.name,
+            description: `(row: ${fn.row}, col: ${fn.column})`,
+            name: fn.name,
+            row: fn.row,
+            column: fn.column,
+          }));
 
           const selection = await vscode.window.showQuickPick(quickPickItems, {
             placeHolder: "What function do you want to go to?",
