@@ -100,7 +100,7 @@ export function cStyleIfProcessor(
     }));
 
     for (const [ifMatch, { condBlock }] of zip(allIfs, blocks)) {
-      ctx.link.syntaxToNode(ifMatch.requireSyntax("if"), condBlock.entry);
+      ctx.link.syntaxToNode(ifMatch.requireSyntax("cond"), condBlock.entry);
       ctx.link.offsetToSyntax(
         ifMatch.requireSyntax("closing-paren"),
         ifMatch.requireSyntax("then"),
