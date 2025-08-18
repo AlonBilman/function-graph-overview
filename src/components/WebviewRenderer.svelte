@@ -69,7 +69,7 @@ function rebuildLineIndex() {
   // Get all nodeIds from the current SVG DOM
   const nodeElements = document.querySelectorAll("svg g.node");
 
-  for (const element of nodeElements) {
+  for (const element of Array.from(nodeElements)) {
     const nodeId = element.id;
     if (!nodeId) continue;
 
