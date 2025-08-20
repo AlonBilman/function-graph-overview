@@ -33,12 +33,24 @@ export type UpdateSettings = {
   colorList: ColorList;
 };
 
-export type MessageToWebview = UpdateCode | UpdateSettings | UpdateBreakpoints;
-export type MessageToVscode = NavigateTo | ToggleBreakpoint;
+export type MessageToWebview = UpdateCode | UpdateSettings | UpdateBreakpoints | UpdateTempRunLine;
+export type MessageToVscode = NavigateTo | ToggleBreakpoint | RunUntil;
 
 export type UpdateBreakpoints = {
   tag: "updateBreakpoints";
   lines: number[];
+};
+
+// Webview -> VS Code
+export type RunUntil = {
+  tag: "runUntil";
+  line: number;
+};
+
+// VSCode -> Webview
+export type UpdateTempRunLine = {
+  tag: "updateTempRunLine";
+  line: number | null;
 };
 
 type Message = MessageToVscode | MessageToWebview;

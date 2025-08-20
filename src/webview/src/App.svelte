@@ -132,6 +132,7 @@ declare global {
   }
 
   let breakpointLines: number[] = $state([]); // NEW
+  let tempRunLine: number | null = $state(null);  
 
   function initVSCode(stateHandler: StateHandler): void {
     if (!vscode) return;
@@ -157,6 +158,9 @@ declare global {
           break;
         case "updateBreakpoints":
           breakpointLines = Array.isArray(message.lines) ? message.lines : [];
+          break;
+        case "updateTempRunLine":
+          tempRunLine = message.line;
           break;
       }
     });
@@ -223,10 +227,15 @@ declare global {
     {flatSwitch}
     {highlight}
     breakpointLines={breakpointLines}
+    tempRunLine={tempRunLine}
     on:node-clicked={navigateTo}
     on:toggle-breakpoint={(e) => {
       const { line } = e.detail;
       vscode?.postMessage<MessageToVscode>({ tag: "toggleBreakpoint", line });
+    }}
+    on:run-until={(e) => {
+      const { line } = e.detail;
+      vscode?.postMessage<MessageToVscode>({ tag: "runUntil", line });
     }}
   />
 </main>

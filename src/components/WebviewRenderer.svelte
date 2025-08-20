@@ -31,6 +31,8 @@ interface Props {
   highlight?: boolean;
   showRegions?: boolean;
   breakpointLines?: number[];
+  breakpointLines?: number[];
+  tempRunLine?: number | null;
 }
 
 let {
@@ -43,6 +45,8 @@ let {
   highlight = true,
   showRegions = false,
   breakpointLines = [],
+  tempRunLine = null,
+
 }: Props = $props();
 
 // Map line -> nodeIds (built per render)
@@ -108,6 +112,31 @@ function ensureBreakpointDot(nodeId: string) {
   g.appendChild(dot);
 }
 
+function ensureRunUntilDot(nodeId: string) {
+  const g = document.getElementById(nodeId) as SVGGElement | null;
+  if (!g) return;
+  if (g.querySelector(".rununtil-dot")) return;
+  const polygon = g.querySelector("polygon") as SVGGraphicsElement | null;
+  if (!polygon) return;
+  const box = polygon.getBBox();
+
+  const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  dot.setAttribute("class", "rununtil-dot");
+  dot.setAttribute("r", "5");
+  dot.setAttribute("fill", "none");
+  dot.setAttribute("stroke", "#e51400");
+  dot.setAttribute("stroke-width", "2");
+  dot.setAttribute("cx", String(box.x + 8));
+  dot.setAttribute("cy", String(box.y + 8));
+  g.appendChild(dot);
+}
+
+function clearAllRunUntilDots() {
+  const dots = document.querySelectorAll("svg g.node .rununtil-dot");
+  for (const el of Array.from(dots)) el.remove();
+}
+
+
 function clearAllBreakpointDots() {
   const dots = document.querySelectorAll("svg g.node .breakpoint-dot");
   for (const el of Array.from(dots)) {
@@ -117,13 +146,22 @@ function clearAllBreakpointDots() {
 
 function refreshBreakpointDots() {
   clearAllBreakpointDots();
-  if (!breakpointLines?.length) return; // read prop directly
-  for (const line of breakpointLines) {
-    const nodes = lineToNodes.get(line);
-    if (!nodes) continue;
-    for (const nodeId of nodes) ensureBreakpointDot(nodeId);
+  clearAllRunUntilDots();
+
+  if (breakpointLines?.length) {
+    for (const line of breakpointLines) {
+      const nodes = lineToNodes.get(line);
+      if (!nodes) continue;
+      for (const nodeId of nodes) ensureBreakpointDot(nodeId);
+    }
+  }
+
+  if (typeof tempRunLine === "number") {
+    const nodes = lineToNodes.get(tempRunLine);
+    if (nodes) for (const nodeId of nodes) ensureRunUntilDot(nodeId);
   }
 }
+
 
 const getRenderer = memoizeFunction({
   func: (options: RenderOptions, colorList: ColorList, graphviz: Graphviz) =>
@@ -223,6 +261,12 @@ $effect(() => {
   void breakpointLines; // ensure reactivity
   refreshBreakpointDots();
 });
+
+$effect(() => {
+  void tempRunLine;
+  refreshBreakpointDots();
+});
+
 
 function renderWrapper(
   codeAndOffset: CodeAndOffset | null,
@@ -461,26 +505,35 @@ const panAfterRender: Action = () => {
 </PanzoomComp>
 
 {#if ctxMenu.visible}
-  <button
-    type="button"
+  <div
     class="context-menu"
     style={"top:" + ctxMenu.y + "px;left:" + ctxMenu.x + "px"}
-    aria-label={ctxMenu.has ? "Remove Breakpoint" : "Add Breakpoint"}
-    onclick={e => { e.stopPropagation(); onToggleBreakpointClick(); }}
-    onkeydown={e => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onToggleBreakpointClick();
-      }
-    }}
+    role="menu"
   >
-    {#if ctxMenu.has}
-      Remove Breakpoint
-    {:else}
-      Add Breakpoint
-    {/if}
-  </button>
+    <button
+      type="button"
+      aria-label={ctxMenu.has ? "Remove Breakpoint" : "Add Breakpoint"}
+      onclick={e => { e.stopPropagation(); onToggleBreakpointClick(); }}
+    >
+      {#if ctxMenu.has}Remove Breakpoint{:else}Add Breakpoint{/if}
+    </button>
+
+    <button
+      type="button"
+      aria-label="Run until breakpoint"
+      onclick={e => {
+        e.stopPropagation();
+        if (ctxMenu.line != null) {
+          dispatch("run-until", { line: ctxMenu.line });
+        }
+        hideContextMenu();
+      }}
+    >
+      Run until here
+    </button>
+  </div>
 {/if}
+
 
 <style>
   .graph {
@@ -503,13 +556,25 @@ const panAfterRender: Action = () => {
     background: var(--vscode-editor-background, #2b2d30);
     color: var(--vscode-editor-foreground, #ddd);
     border: 1px solid var(--vscode-editor-foreground, #555);
-    padding: 6px 10px;
+    padding: 6px 8px;
     border-radius: 4px;
-    cursor: pointer;
-    user-select: none;
     box-shadow: 0 2px 8px rgba(0,0,0,0.35);
     font-size: 12px;
+    display: grid;
+    gap: 6px;
   }
+  .context-menu > button {
+    background: transparent;
+    color: inherit;
+    border: 0;
+    text-align: left;
+    padding: 4px 2px;
+    cursor: pointer;
+  }
+  .context-menu > button:hover {
+    filter: brightness(1.2);
+  }
+
 
   :root {
       /* We don't yet get the actual colors from the JetBrains IDEs,

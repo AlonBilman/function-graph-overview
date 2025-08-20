@@ -7,16 +7,13 @@ import {
   getLightColorList,
 } from "../control-flow/colors";
 import type {
-  ToggleBreakpoint, // NEW
+  ToggleBreakpoint,
   UpdateBreakpoints,
   UpdateCode,
   UpdateSettings,
 } from "./messages.ts";
 import { OverviewViewProvider } from "./overview-view";
 
-/* Disable a specific oxlint check until https://github.com/oxc-project/oxc/issues/10106
-   is resolved.
- */
 /* oxlint-disable eslint-plugin-unicorn(require-post-message-target-origin) */
 
 interface FunctionPickItem extends vscode.QuickPickItem {
@@ -25,7 +22,6 @@ interface FunctionPickItem extends vscode.QuickPickItem {
   column: number;
 }
 
-// ADD-LANGUAGES-HERE
 const languageMapping: { [key: string]: Language } = {
   c: "C",
   cpp: "C++",
@@ -47,19 +43,14 @@ function getCurrentCode(): {
   language: Language;
 } | null {
   const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    return null;
-  }
-
+  if (!editor) return null;
   const document = editor.document;
   const languageId = document.languageId;
-
   const language = idToLanguage(languageId);
   if (!language) {
     console.log(`Unsupported language id: ${languageId}`);
     return null;
   }
-
   const code = document.getText();
   return { code, languageId, language };
 }
@@ -83,9 +74,7 @@ function loadSettings(): Settings {
   const colorList = (() => {
     switch (colorScheme) {
       case "System":
-        if (isThemeDark()) {
-          return getDarkColorList();
-        }
+        if (isThemeDark()) return getDarkColorList();
         return getLightColorList();
       case "Light":
         return getLightColorList();
@@ -96,7 +85,6 @@ function loadSettings(): Settings {
           return deserializeColorList(config.get("customColorScheme") ?? "");
         } catch (error) {
           console.log(error);
-          // TODO: Add a user-visible error here.
         }
         return getLightColorList();
     }
@@ -113,43 +101,41 @@ function focusEditor() {
   const editor = vscode.window.activeTextEditor;
   if (editor) {
     vscode.window.showTextDocument(editor.document, {
-      preserveFocus: false, // This ensures the editor gets focus
-      preview: false, // Don't open in preview mode
+      preserveFocus: false,
+      preview: false,
       viewColumn: editor.viewColumn,
     });
-    console.log("Focus!!!");
   }
 }
 
 function moveCursorAndReveal(offset: number) {
   const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    return;
-  }
-  console.log("Moving!");
+  if (!editor) return;
   const position = editor.document.positionAt(offset);
   editor.selection = new vscode.Selection(position, position);
-
-  // Reveal the cursor position in different ways
   editor.revealRange(
     new vscode.Range(position, position),
-    vscode.TextEditorRevealType.InCenterIfOutsideViewport, // Can be Default, InCenter, InCenterIfOutsideViewport, AtTop
+    vscode.TextEditorRevealType.InCenterIfOutsideViewport,
   );
 }
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+let provider: OverviewViewProvider;
+let extContext: vscode.ExtensionContext;
+
 export async function activate(context: vscode.ExtensionContext) {
-  const provider = new OverviewViewProvider(
+  extContext = context;
+
+  provider = new OverviewViewProvider(
     context.extensionUri,
     isThemeDark(),
     {
       navigateTo: ({ offset, withControl, functionNamesAndLocations }) =>
         onNodeClick(offset, withControl, functionNamesAndLocations),
-
-      // NEW: toggle breakpoint requested from the webview
       toggleBreakpoint: ({ line }: ToggleBreakpoint) => {
         toggleBreakpointAtActiveEditorLine(line);
+      },
+      runUntil: ({ line }: { line: number }) => {
+        runUntilAtActiveEditorLine(line);
       },
     },
   );
@@ -161,17 +147,11 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
   );
 
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
-  console.log(
-    'Congratulations, your extension "function-graph-overview" is now active!',
-  );
+  console.log("function-graph-overview active");
 
   function jumpToCursor(row: number, col: number): void {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
-    // In order to match the VS Code API
-    // even though it doesnt exactly match the text editor's line numbers
     row -= 1;
     const pos = new vscode.Position(row, col);
     editor.selection = new vscode.Selection(pos, pos);
@@ -190,8 +170,6 @@ export async function activate(context: vscode.ExtensionContext) {
       try {
         moveCursorAndReveal(offset);
         if (functionNamesAndLocations && functionNamesAndLocations.length > 0) {
-          //Prepare QuickPick items with additional metadata (name, row, column) so we can
-          //access the full function info later after user selection, instead of parsing strings.
           const quickPickItems: FunctionPickItem[] =
             functionNamesAndLocations.map((fn) => ({
               label: fn.name,
@@ -207,7 +185,6 @@ export async function activate(context: vscode.ExtensionContext) {
           });
 
           if (selection) {
-            // Ok! now the magic happens — let's jump to the function call and mimic F12.
             jumpToCursor(selection.row, selection.column);
           } else {
             vscode.window.showInformationMessage("No function selected.");
@@ -262,14 +239,9 @@ export async function activate(context: vscode.ExtensionContext) {
         const position = editor.selection.active;
         const offset = editor.document.offsetAt(position);
 
-        console.log(
-          `Cursor position changed: Line ${position.line + 1}, Column ${position.character + 1}`,
-        );
-
         const { code, languageId, language } = getCurrentCode() ?? {};
-        if (!code || !languageId || !language) {
-          return;
-        }
+        if (!code || !languageId || !language) return;
+
         provider.postMessage<UpdateCode>({
           tag: "updateCode",
           code,
@@ -277,18 +249,15 @@ export async function activate(context: vscode.ExtensionContext) {
           language,
         });
 
-        // NEW: keep breakpoint dots in sync when cursor moves or user clicks a node
         postBreakpointsForActiveEditor();
       },
     ),
   );
 
   const command = "functionGraphOverview.focus";
-
   const commandHandler = () => {
     vscode.commands.executeCommand("functionGraphOverview.overview.focus");
   };
-
   context.subscriptions.push(
     vscode.commands.registerCommand(command, commandHandler),
   );
@@ -310,7 +279,6 @@ export async function activate(context: vscode.ExtensionContext) {
     });
   }
 
-  // NEW: toggle helper for the active editor
   function toggleBreakpointAtActiveEditorLine(line: number) {
     const editor = vscode.window.activeTextEditor;
     if (!editor) return;
@@ -331,7 +299,6 @@ export async function activate(context: vscode.ExtensionContext) {
         new vscode.SourceBreakpoint(location, true),
       ]);
     }
-    // onDidChangeBreakpoints will fire and push updateBreakpoints; no need to post manually.
   }
 
   context.subscriptions.push(
@@ -348,11 +315,160 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
   );
 
-  // Seed on activation
+  context.subscriptions.push(
+    vscode.debug.onDidTerminateDebugSession(() => {
+      if (tempRunTarget) {
+        vscode.debug.removeBreakpoints([tempRunTarget.bp]);
+        tempRunTarget = null;
+      }
+    }),
+  );
+
   postBreakpointsForActiveEditor();
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+let tempRunTarget:
+  | { uri: vscode.Uri; line: number; bp: vscode.SourceBreakpoint }
+  | null = null;
 
-//------------------------------------------------
+const trackedTypes = new Set<string>();
+
+function isStoppedEvent(
+  m: unknown,
+): m is { event: string; body?: { threadId?: number } } {
+  return (
+    typeof m === "object" &&
+    m !== null &&
+    (m as { event?: string }).event === "stopped"
+  );
+}
+
+type DAPStackFrame = {
+  line?: number;
+  source?: { path?: string; sourceReference?: number };
+};
+type DAPStackTraceResponse = { stackFrames?: DAPStackFrame[] };
+
+async function waitForSessionStart(
+  timeoutMs = 10000,
+): Promise<vscode.DebugSession | null> {
+  if (vscode.debug.activeDebugSession) return vscode.debug.activeDebugSession;
+  return new Promise((resolve) => {
+    const t = setTimeout(() => {
+      d.dispose();
+      resolve(vscode.debug.activeDebugSession ?? null);
+    }, timeoutMs);
+    const d = vscode.debug.onDidStartDebugSession((s) => {
+      clearTimeout(t);
+      d.dispose();
+      resolve(s);
+    });
+  });
+}
+
+async function ensureDebugSession(): Promise<vscode.DebugSession | null> {
+  if (vscode.debug.activeDebugSession) return vscode.debug.activeDebugSession;
+
+  const folders = vscode.workspace.workspaceFolders;
+  const startViaCommand = async () => {
+    await vscode.commands.executeCommand("workbench.action.debug.start");
+    return await waitForSessionStart();
+  };
+
+  if (!folders?.length) {
+    return await startViaCommand();
+  }
+
+  const folder = folders[0];
+  if (!folder) {
+    return await startViaCommand();
+  }
+  const launch = vscode.workspace.getConfiguration("launch", folder.uri);
+  const configs =
+    launch.get<vscode.DebugConfiguration[]>("configurations") ?? [];
+  if (configs.length === 1 && configs[0] !== undefined) {
+    const ok = await vscode.debug.startDebugging(folder, configs[0]);
+    if (!ok) return null;
+    return await waitForSessionStart();
+  }
+
+  return await startViaCommand();
+}
+
+function ensureStoppedTracker(sessionType: string) {
+  if (trackedTypes.has(sessionType)) return;
+  const disp = vscode.debug.registerDebugAdapterTrackerFactory(sessionType, {
+    createDebugAdapterTracker(session) {
+      return {
+        async onDidSendMessage(m: unknown) {
+          if (!isStoppedEvent(m) || !tempRunTarget) return;
+          try {
+            const threadId = m.body?.threadId;
+            if (!threadId) return;
+            const stack = (await session.customRequest("stackTrace", {
+              threadId,
+              startFrame: 0,
+              levels: 1,
+            })) as DAPStackTraceResponse;
+            const frame = stack.stackFrames?.[0];
+            if (!frame?.source) return;
+            const hitUri = frame.source.path
+              ? vscode.Uri.file(frame.source.path)
+              : undefined;
+            const hitLine0 = (frame.line ?? 1) - 1;
+            if (
+              hitUri &&
+              hitUri.toString() === tempRunTarget.uri.toString() &&
+              hitLine0 === tempRunTarget.line
+            ) {
+              // עצרנו בדיוק על היעד: מסירים את ה־BP הזמני ומשאירים את הסשן Paused
+              vscode.debug.removeBreakpoints([tempRunTarget.bp]);
+              tempRunTarget = null;
+            }
+          } catch {
+            /* ignore */
+          }
+        },
+        onExit() {
+          if (tempRunTarget) {
+            vscode.debug.removeBreakpoints([tempRunTarget.bp]);
+            tempRunTarget = null;
+          }
+        },
+      };
+    },
+  });
+  trackedTypes.add(sessionType);
+  extContext.subscriptions.push(disp);
+}
+
+async function runUntilAtActiveEditorLine(line: number) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+
+  const session = await ensureDebugSession();
+  if (!session) {
+    vscode.window.showErrorMessage("Failed to start a debug session");
+    return;
+  }
+
+  ensureStoppedTracker(session.type);
+
+  const uri = editor.document.uri;
+  const pos = new vscode.Position(line, 0);
+  editor.selection = new vscode.Selection(pos, pos);
+  editor.revealRange(
+    new vscode.Range(pos, pos),
+    vscode.TextEditorRevealType.InCenter,
+  );
+
+  const location = new vscode.Location(uri, new vscode.Position(line, 0));
+  const bp = new vscode.SourceBreakpoint(location, true);
+  vscode.debug.addBreakpoints([bp]);
+
+  tempRunTarget = { uri, line, bp };
+
+  await vscode.commands.executeCommand("workbench.action.debug.continue");
+}
+
+export function deactivate() {}
