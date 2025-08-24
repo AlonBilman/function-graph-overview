@@ -75,16 +75,28 @@ export class Renderer {
     };
   }
 
+  // Public: highlight an SVG by node id without re-rendering DOT
+  public applyHighlight(svg: string, nodeId: string): string {
+    return this.highlightNode(svg, nodeId);
+  }
+
   private highlightNode(svg: string, nodeId: string): string {
     try {
       const dom = svgFromString(svg);
-      // We construct the SVG, so we know the node must exist.
-      const node: G = dom.findOne(`g#${nodeId}`) as G;
-      // Same applies to the polygon.
-      const poly: Polygon = node.findOne("polygon") as Polygon;
-      // The highlight class is used when previewing colors in the demo.
+      const node = dom.findOne(`g#${CSS.escape(nodeId)}`);
+      if (!node) return svg;
+
+      const poly = node.findOne("polygon");
+      if (!poly) return svg;
+
+      // Keep existing fill; emphasize the border as bold white dashed
       node.addClass("highlight");
-      poly.fill(listToScheme(this.colorList)["node.highlight"]);
+      poly.attr({
+        stroke: "#ffffff",
+        "stroke-width": "2",
+        "stroke-linejoin": "round",
+      });
+
       return dom.svg();
     } catch (e) {
       console.error(`Failed to highlight node ${nodeId}:`, e);

@@ -31,7 +31,6 @@ interface Props {
   highlight?: boolean;
   showRegions?: boolean;
   breakpointLines?: number[];
-  breakpointLines?: number[];
   tempRunLine?: number | null;
 }
 
@@ -387,8 +386,7 @@ function onZoomClick(
     });
   }
 }
-
-// NEW: simple context menu state and handlers
+// Context menu state 
 let ctxMenu = $state<{
   visible: boolean;
   x: number;
@@ -474,6 +472,7 @@ const panAfterRender: Action = () => {
   }
 };
 </script>
+
 <div class="editor-controls">
   <input type="checkbox" id="simplify-toggle" bind:checked={simplify}/> <label for="simplify">Simplify</label>
   <input type="checkbox" id="panzoom" bind:checked={enableZoom}/> <label for="panzoom">Pan & Zoom</label>
