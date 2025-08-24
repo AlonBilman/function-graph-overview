@@ -137,6 +137,9 @@ export async function activate(context: vscode.ExtensionContext) {
       runUntil: ({ line }: { line: number }) => {
         runUntilAtActiveEditorLine(line);
       },
+      clearAllBreakpoints: () => {
+        clearAllSourceBreakpoints();
+      },
     },
   );
 
@@ -320,6 +323,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (tempRunTarget) {
         vscode.debug.removeBreakpoints([tempRunTarget.bp]);
         tempRunTarget = null;
+        postTempRunLine(null);
       }
     }),
   );
@@ -395,6 +399,27 @@ async function ensureDebugSession(): Promise<vscode.DebugSession | null> {
   return await startViaCommand();
 }
 
+function postTempRunLine(line: number | null) {
+  provider.postMessage<{ tag: "updateTempRunLine"; line: number | null }>({
+    tag: "updateTempRunLine",
+    line,
+  });
+}
+
+function clearAllSourceBreakpoints() {
+  const toRemove = vscode.debug.breakpoints.filter(
+    (bp): bp is vscode.SourceBreakpoint => bp instanceof vscode.SourceBreakpoint,
+  );
+  if (toRemove.length) {
+    vscode.debug.removeBreakpoints(toRemove);
+  }
+  if (tempRunTarget) {
+    vscode.debug.removeBreakpoints([tempRunTarget.bp]);
+    tempRunTarget = null;
+  }
+  postTempRunLine(null);
+}
+
 function ensureStoppedTracker(sessionType: string) {
   if (trackedTypes.has(sessionType)) return;
   const disp = vscode.debug.registerDebugAdapterTrackerFactory(sessionType, {
@@ -421,18 +446,19 @@ function ensureStoppedTracker(sessionType: string) {
               hitUri.toString() === tempRunTarget.uri.toString() &&
               hitLine0 === tempRunTarget.line
             ) {
-              // עצרנו בדיוק על היעד: מסירים את ה־BP הזמני ומשאירים את הסשן Paused
               vscode.debug.removeBreakpoints([tempRunTarget.bp]);
               tempRunTarget = null;
+              postTempRunLine(null);
             }
           } catch {
-            /* ignore */
+            // Ignore errors
           }
         },
         onExit() {
           if (tempRunTarget) {
             vscode.debug.removeBreakpoints([tempRunTarget.bp]);
             tempRunTarget = null;
+            postTempRunLine(null);
           }
         },
       };
@@ -467,6 +493,7 @@ async function runUntilAtActiveEditorLine(line: number) {
   vscode.debug.addBreakpoints([bp]);
 
   tempRunTarget = { uri, line, bp };
+  postTempRunLine(line);
 
   await vscode.commands.executeCommand("workbench.action.debug.continue");
 }

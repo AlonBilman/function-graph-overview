@@ -10,15 +10,9 @@ declare const acquireVsCodeApi:
 declare global {
   interface Window {
     JetBrains?: {
-      /**
-       * Calls going from the WebView to the JetBrains extension
-       */
       ToExtension?: {
         navigateTo: (offset: string, withControl: boolean) => void;
       };
-      /**
-       * Functions the extension can use to call into the WebView
-       */
       ToWebview?: {
         setColors: (colors: string) => void;
         setCode: (code: string, offset: number, language: string) => void;
@@ -43,10 +37,6 @@ declare global {
   import * as jetbrainsDarkTheme from "./defaultDark.json";
   import type { MessageToWebview, NavigateTo } from "../../vscode/messages.ts";
 
-
-  /**
-   * Are we running in a VSCode WebView?
-   */
   const vscode =
     typeof acquireVsCodeApi !== "undefined" ? acquireVsCodeApi() : undefined;
 
@@ -54,16 +44,12 @@ declare global {
   let flatSwitch = $state(true);
   let highlight = $state(true);
 
-  // Set initial background color
   let colorList = $state((function () {
     function isDarkTheme(): boolean {
       return document.body.dataset.theme !== "light";
     }
-
-    // This is the JetBrains colorlist
     let colorList: ColorList = jetbrainsDarkTheme.scheme as ColorList;
     if (vscode) {
-      // This is the VSCode colorList
       colorList = getDarkColorList();
     }
     if (!isDarkTheme()) {
@@ -72,7 +58,6 @@ declare global {
     document.body.style.backgroundColor = colorList.find(
       ({ name }) => name === "graph.background",
     ).hex;
-
     return colorList;
   })());
 
@@ -131,7 +116,7 @@ declare global {
     }
   }
 
-  let breakpointLines: number[] = $state([]); // NEW
+  let breakpointLines: number[] = $state([]);
   let tempRunLine: number | null = $state(null);  
 
   function initVSCode(stateHandler: StateHandler): void {
@@ -183,7 +168,6 @@ declare global {
       }
     }
 
-    // Set callbacks for use by the JetBrains extension
     window.JetBrains ??= {};
     window.JetBrains.ToWebview = {
       setSimplify: (flag: boolean) =>
@@ -209,9 +193,6 @@ declare global {
     e: CustomEvent<{ node: string; offset: number | null; withControl: boolean; functionNamesAndLocations?: { name: string; row: number; column: number }[] }>,
   ): void {
     if (e.detail.offset === null) {
-      // We don't know the offset, so we can't navigate to it.
-      // TODO: Check if this can actually happen now.
-      //       We changed the representation of nodes, so it shouldn't.
       return;
     }
 
@@ -236,6 +217,9 @@ declare global {
     on:run-until={(e) => {
       const { line } = e.detail;
       vscode?.postMessage<MessageToVscode>({ tag: "runUntil", line });
+    }}
+    on:clear-all-bps={() => {
+      vscode?.postMessage<MessageToVscode>({ tag: "clearAllBreakpoints" });
     }}
   />
 </main>
