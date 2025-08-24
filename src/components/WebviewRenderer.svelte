@@ -456,7 +456,7 @@ const panAfterRender: Action = () => {
 </div>
 <PanzoomComp bind:this={pzComp} onclick={onZoomClick} disabled={!enableZoom}>
 {#await initialize() then _}
-  <div class="graph" oncontextmenu={onContextMenu}>
+  <div class="graph" oncontextmenu={onContextMenu} role="region">
     {#await asyncRenderWrapper(
       codeAndOffset,
       {
