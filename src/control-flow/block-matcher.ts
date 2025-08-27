@@ -13,7 +13,7 @@ function matchQuery(
   syntax: SyntaxNode,
   queryString: string,
   options?: QueryOptions,
-): QueryMatch {
+): QueryMatch[] {
   const language = syntax.tree.language;
   const query = new Query(language, queryString);
   options = evolve(defaultQueryOptions, options ?? {});
@@ -22,8 +22,7 @@ function matchQuery(
   if (matches.length === 0) {
     throw new Error("No match found for query.");
   }
-  // @ts-expect-error: tsc can't deduce that an element must exist.
-  return matches[0];
+  return matches;
 }
 
 export function matchExistsIn(
@@ -77,7 +76,19 @@ export class BlockMatcher {
     options?: QueryOptions,
   ): Match {
     const match = matchQuery(syntax, queryString, options);
-    return new Match(match, this.blockHandler, this.dispatchSingle);
+    // @ts-expect-error: tsc can't deduce that an element must exist.
+    return new Match(match[0], this.blockHandler, this.dispatchSingle);
+  }
+
+  public matchAll(
+    syntax: SyntaxNode,
+    queryString: string,
+    options?: QueryOptions,
+  ): Match[] {
+    const matches = matchQuery(syntax, queryString, options);
+    return matches.map(
+      (match) => new Match(match, this.blockHandler, this.dispatchSingle),
+    );
   }
 
   public tryMatch(syntax: SyntaxNode, queryString: string): Match | null {
@@ -85,6 +96,18 @@ export class BlockMatcher {
       return this.match(syntax, queryString);
     } catch {
       return null;
+    }
+  }
+
+  public tryMatchAll(
+    syntax: SyntaxNode,
+    queryString: string,
+    options?: QueryOptions,
+  ): Match[] {
+    try {
+      return this.matchAll(syntax, queryString, options);
+    } catch {
+      return [];
     }
   }
 
