@@ -125,20 +125,16 @@ let extContext: vscode.ExtensionContext;
 export async function activate(context: vscode.ExtensionContext) {
   extContext = context;
 
-  provider = new OverviewViewProvider(
-    context.extensionUri,
-    isThemeDark(),
-    {
-      navigateTo: ({ offset, withControl, functionNamesAndLocations }) =>
-        onNodeClick(offset, withControl, functionNamesAndLocations),
-      toggleBreakpoint: ({ line }: ToggleBreakpoint) => {
-        toggleBreakpointAtActiveEditorLine(line);
-      },
-      runUntil: ({ line }: { line: number }) => {
-        runUntilAtActiveEditorLine(line);
-      },
+  provider = new OverviewViewProvider(context.extensionUri, isThemeDark(), {
+    navigateTo: ({ offset, withControl, functionNamesAndLocations }) =>
+      onNodeClick(offset, withControl, functionNamesAndLocations),
+    toggleBreakpoint: ({ line }: ToggleBreakpoint) => {
+      toggleBreakpointAtActiveEditorLine(line);
     },
-  );
+    runUntil: ({ line }: { line: number }) => {
+      runUntilAtActiveEditorLine(line);
+    },
+  });
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -327,9 +323,11 @@ export async function activate(context: vscode.ExtensionContext) {
   postBreakpointsForActiveEditor();
 }
 
-let tempRunTarget:
-  | { uri: vscode.Uri; line: number; bp: vscode.SourceBreakpoint }
-  | null = null;
+let tempRunTarget: {
+  uri: vscode.Uri;
+  line: number;
+  bp: vscode.SourceBreakpoint;
+} | null = null;
 
 const trackedTypes = new Set<string>();
 

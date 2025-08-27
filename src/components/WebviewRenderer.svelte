@@ -45,7 +45,6 @@ let {
   showRegions = false,
   breakpointLines = [],
   tempRunLine = null,
-
 }: Props = $props();
 
 // Map line -> nodeIds (built per render)
@@ -135,7 +134,6 @@ function clearAllRunUntilDots() {
   for (const el of Array.from(dots)) el.remove();
 }
 
-
 function clearAllBreakpointDots() {
   const dots = document.querySelectorAll("svg g.node .breakpoint-dot");
   for (const el of Array.from(dots)) {
@@ -160,7 +158,6 @@ function refreshBreakpointDots() {
     if (nodes) for (const nodeId of nodes) ensureRunUntilDot(nodeId);
   }
 }
-
 
 const getRenderer = memoizeFunction({
   func: (options: RenderOptions, colorList: ColorList, graphviz: Graphviz) =>
@@ -265,7 +262,6 @@ $effect(() => {
   void tempRunLine;
   refreshBreakpointDots();
 });
-
 
 function renderWrapper(
   codeAndOffset: CodeAndOffset | null,
@@ -386,7 +382,7 @@ function onZoomClick(
     });
   }
 }
-// Context menu state 
+// Context menu state
 let ctxMenu = $state<{
   visible: boolean;
   x: number;

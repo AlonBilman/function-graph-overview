@@ -1,8 +1,10 @@
 import { expect, test } from "vitest";
 import type { Node as SyntaxNode } from "web-tree-sitter";
-import { extractFunctionNamesAndLocation, removeDuplicateCalls } from "../control-flow/common-patterns.ts";
+import {
+  extractFunctionNamesAndLocation,
+  removeDuplicateCalls,
+} from "../control-flow/common-patterns.ts";
 import { iterFunctions } from "../file-parsing/bun.ts";
-
 
 function walkAllNodes(node: SyntaxNode, visit: (node: SyntaxNode) => void) {
   visit(node);
@@ -88,7 +90,7 @@ test("C: simple_function_call3", () => {
     });
   }
   const callNames = removeDuplicateCalls(calls).map((call) => call.name);
-  expect(callNames).toEqual(["a","b","c","d","e","f","g"]);
+  expect(callNames).toEqual(["a", "b", "c", "d", "e", "f", "g"]);
 });
 
 test("C: function_inside_for_loop", () => {
@@ -143,7 +145,7 @@ test("C: function_inside_for_loop_advanced", () => {
     });
   }
   const callNames = removeDuplicateCalls(calls).map((call) => call.name);
-  expect(callNames).toEqual(["add_numbers","hello_world"]);
+  expect(callNames).toEqual(["add_numbers", "hello_world"]);
 });
 
 test("C: function_inside_while_loop", () => {
@@ -203,7 +205,15 @@ test("C: function_inside_while_loop_advanced", () => {
     });
   }
   const callNames = removeDuplicateCalls(calls).map((call) => call.name);
-  expect(callNames).toEqual(["scanf","a","b","c", "is_odd", "printf", "add_number"]);
+  expect(callNames).toEqual([
+    "scanf",
+    "a",
+    "b",
+    "c",
+    "is_odd",
+    "printf",
+    "add_number",
+  ]);
 });
 
 test("C: function_inside_condition", () => {
@@ -236,7 +246,20 @@ test("C: function_inside_condition", () => {
     });
   }
   const callNames = removeDuplicateCalls(calls).map((call) => call.name);
-  expect(callNames).toEqual(["a","b","c","d","e","f","g","h","printf", "i", "j", "k"]);
+  expect(callNames).toEqual([
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "printf",
+    "i",
+    "j",
+    "k",
+  ]);
 });
 
 test("C: function_calls_return", () => {
@@ -267,7 +290,7 @@ test("C: function_calls_return", () => {
     });
   }
   const callNames = removeDuplicateCalls(calls).map((call) => call.name);
-  expect(callNames).toEqual(["a","b","c","d","e","printf", "f", "g"]);
+  expect(callNames).toEqual(["a", "b", "c", "d", "e", "printf", "f", "g"]);
 });
 
 test("C: function_calls_return2", () => {
@@ -294,5 +317,5 @@ test("C: function_calls_return2", () => {
     });
   }
   const callNames = removeDuplicateCalls(calls).map((call) => call.name);
-  expect(callNames).toEqual(["a","b","c","d","e", "f", "g"]);
+  expect(callNames).toEqual(["a", "b", "c", "d", "e", "f", "g"]);
 });

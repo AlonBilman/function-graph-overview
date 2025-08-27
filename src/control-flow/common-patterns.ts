@@ -23,12 +23,12 @@ export function extractFunctionNamesAndLocation(
       column: capture.node.startPosition.column,
     }));
 
-    //removing duplicate by (name + row + column)
-    return removeDuplicateCalls(mapped);
-  }
+  //removing duplicate by (name + row + column)
+  return removeDuplicateCalls(mapped);
+}
 
-  export function removeDuplicateCalls(
-  calls: { name: string; row: number; column: number }[]
+export function removeDuplicateCalls(
+  calls: { name: string; row: number; column: number }[],
 ): { name: string; row: number; column: number }[] {
   const seen = new Set<string>();
   return calls.filter(({ name, row, column }) => {
@@ -303,9 +303,12 @@ export function cStyleForStatementProcessor(
     const headBlock = { entry: headNode, exit: headNode };
 
     ctx.link.syntaxToNode(forNode, entryNode);
-    if (initBlock && initSyntax) ctx.link.syntaxToNode(initSyntax, initBlock.entry);
-    if (condBlock && condSyntax) ctx.link.syntaxToNode(condSyntax, condBlock.entry);
-    if (updateBlock && updateSyntax) ctx.link.syntaxToNode(updateSyntax, updateBlock.entry);
+    if (initBlock && initSyntax)
+      ctx.link.syntaxToNode(initSyntax, initBlock.entry);
+    if (condBlock && condSyntax)
+      ctx.link.syntaxToNode(condSyntax, condBlock.entry);
+    if (updateBlock && updateSyntax)
+      ctx.link.syntaxToNode(updateSyntax, updateBlock.entry);
 
     const closeParens = match.requireSyntax("close-parens");
 
@@ -349,7 +352,7 @@ export function cStyleForStatementProcessor(
       return prevExit;
     };
 
-        /*
+    /*
     entry -> init -> cond +-> body -> head -> update -> cond
                           --> exit
 
@@ -373,7 +376,11 @@ export function cStyleForStatementProcessor(
       if (condBlock.exit) {
         ctx.builder.addEdge(condBlock.exit, bodyBlock.entry, "consequence");
         ctx.builder.addEdge(condBlock.exit, exitNode, "alternative");
-        chainBlocks(bodyBlock.exit ?? null, [headBlock, updateBlock, condBlock]);
+        chainBlocks(bodyBlock.exit ?? null, [
+          headBlock,
+          updateBlock,
+          condBlock,
+        ]);
       }
     } else {
       chainBlocks(topExit, [bodyBlock, headBlock, updateBlock, bodyBlock]);
@@ -390,7 +397,6 @@ export function cStyleForStatementProcessor(
     return ctx.matcher.update({ entry: entryNode, exit: exitNode });
   };
 }
-
 
 export function cStyleWhileProcessor(): (
   whileSyntax: SyntaxNode,

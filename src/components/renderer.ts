@@ -1,5 +1,4 @@
 import type { Graphviz } from "@hpcc-js/wasm-graphviz";
-import type { G, Polygon } from "@svgdotjs/svg.js";
 import objectHash from "object-hash";
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import { type Language, newCFGBuilder } from "../control-flow/cfg";
