@@ -19,7 +19,6 @@ let graphviz: Graphviz;
 let getNodeOffset: (nodeId: string) => number | undefined = () => undefined;
 let offsetToNode: (offset: number) => string | undefined = () => undefined;
 let svg: string;
-//Im not sure that I like this, but it works for now.
 let nodeIdToSyntaxNode: Map<string, SyntaxNode> = new Map();
 interface Props {
   colorList?: ColorList;
@@ -47,48 +46,36 @@ let {
   tempRunLine = null,
 }: Props = $props();
 
-// Map line -> nodeIds (built per render)
 let lineToNodes: Map<number, string[]> = new Map();
+let kitOpen: boolean = $state(false);
 
 function getLineFromOffset(offset: number, code: string): number {
   if (offset < 0 || offset > code.length) {
-    return -1; // Invalid offset
+    return -1;
   }
-
   let line = 0;
   for (let i = 0; i < offset && i < code.length; i++) {
     if (code[i] === "\n") {
       line++;
     }
   }
-
-  return line; // 0-based line number
+  return line;
 }
 
 function rebuildLineIndex() {
   const map = new Map<number, string[]>();
-
-  // Get all nodeIds from the current SVG DOM
   const nodeElements = document.querySelectorAll("svg g.node");
-
   for (const element of Array.from(nodeElements)) {
     const nodeId = element.id;
     if (!nodeId) continue;
-
-    // Get the offset for this node
     const offset = getNodeOffset(nodeId);
     if (offset === undefined) continue;
-
-    // Convert offset to line number
     const line = getLineFromOffset(offset, codeAndOffset?.code ?? "");
-    if (line < 0) continue; // Invalid line
-
-    // Add nodeId to the line mapping
+    if (line < 0) continue;
     const arr = map.get(line) ?? [];
     arr.push(nodeId);
     map.set(line, arr);
   }
-
   lineToNodes = map;
 }
 
@@ -99,7 +86,6 @@ function ensureBreakpointDot(nodeId: string) {
   const polygon = g.querySelector("polygon") as SVGGraphicsElement | null;
   if (!polygon) return;
   const box = polygon.getBBox();
-
   const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   dot.setAttribute("class", "breakpoint-dot");
   dot.setAttribute("r", "5");
@@ -117,7 +103,6 @@ function ensureRunUntilDot(nodeId: string) {
   const polygon = g.querySelector("polygon") as SVGGraphicsElement | null;
   if (!polygon) return;
   const box = polygon.getBBox();
-
   const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   dot.setAttribute("class", "rununtil-dot");
   dot.setAttribute("r", "5");
@@ -144,7 +129,6 @@ function clearAllBreakpointDots() {
 function refreshBreakpointDots() {
   clearAllBreakpointDots();
   clearAllRunUntilDots();
-
   if (breakpointLines?.length) {
     for (const line of breakpointLines) {
       const nodes = lineToNodes.get(line);
@@ -152,7 +136,6 @@ function refreshBreakpointDots() {
       for (const nodeId of nodes) ensureBreakpointDot(nodeId);
     }
   }
-
   if (typeof tempRunLine === "number") {
     const nodes = lineToNodes.get(tempRunLine);
     if (nodes) for (const nodeId of nodes) ensureRunUntilDot(nodeId);
@@ -181,7 +164,6 @@ function getFunctionAtOffset(
   language: Language,
 ): SyntaxNode | null {
   let syntax: SyntaxNode | null = tree.rootNode.descendantForIndex(offset);
-
   while (syntax) {
     if (languageDefinitions[language].functionNodeTypes.includes(syntax.type)) {
       break;
@@ -191,14 +173,10 @@ function getFunctionAtOffset(
   return syntax;
 }
 
-/// Hash identifier of the current function, used to keep track of function changes.
 let functionId: string | undefined = undefined;
-/// True if a function changed in the last change of rendering input
 let functionChanged: boolean = true;
 
 function trackFunctionChanges(functionSyntax: SyntaxNode, language: string) {
-  // Keep track of when the function changes so that we can update the
-  // panzoom accordingly.
   const newFunctionId = objectHash({ code: functionSyntax.text, language });
   functionChanged = functionId !== newFunctionId;
   functionId = newFunctionId;
@@ -243,7 +221,6 @@ function renderCode(
   };
   nodeIdToSyntaxNode = renderResult.nodeIdToSyntaxNode;
 
-  // Queue both for after SVG is mounted
   queueMicrotask(() => {
     rebuildLineIndex();
     refreshBreakpointDots();
@@ -252,9 +229,8 @@ function renderCode(
   return renderResult.svg;
 }
 
-// Keep dots in sync when only breakpointLines change (no graph re-render)
 $effect(() => {
-  void breakpointLines; // ensure reactivity
+  void breakpointLines;
   refreshBreakpointDots();
 });
 
@@ -268,7 +244,6 @@ function renderWrapper(
   options: RenderOptions,
   colorList: ColorList,
 ) {
-  console.log("Rendering!");
   const bgcolor = colorList.find(({ name }) => name === "graph.background").hex;
   const color = colorList.find(({ name }) => name === "node.highlight").hex;
   try {
@@ -307,7 +282,6 @@ function onZoomClick(
   panzoom: PanzoomObject,
   zoomElement: HTMLElement,
 ): void {
-  console.log("Zoom click!");
   let target: Element = event.target as Element;
   while (
     target.tagName !== "div" &&
@@ -321,7 +295,6 @@ function onZoomClick(
     return;
   }
   let functions: { name: string; row: number; column: number }[] = [];
-  //we want it work only on detailed mode
   if (
     event.ctrlKey &&
     nodeIdToSyntaxNode.has(target.id) &&
@@ -382,7 +355,7 @@ function onZoomClick(
     });
   }
 }
-// Context menu state
+
 let ctxMenu = $state<{
   visible: boolean;
   x: number;
@@ -400,7 +373,6 @@ function hideContextMenu() {
   ctxMenu = { visible: false, x: 0, y: 0 };
 }
 
-// Find node under cursor, compute its first line, and show menu
 function onContextMenu(event: MouseEvent) {
   let target: Element = event.target as Element;
   while (
@@ -447,7 +419,6 @@ function onToggleBreakpointClick() {
   hideContextMenu();
 }
 
-// Close menu on outside click
 document.addEventListener("click", () => {
   if (ctxMenu.visible) hideContextMenu();
 });
@@ -472,13 +443,21 @@ const panAfterRender: Action = () => {
 <div class="editor-controls">
   <input type="checkbox" id="simplify-toggle" bind:checked={simplify}/> <label for="simplify">Simplify</label>
   <input type="checkbox" id="panzoom" bind:checked={enableZoom}/> <label for="panzoom">Pan & Zoom</label>
+
+  <div class="debug-kit">
+    <button class="kit-toggle" onclick={() => (kitOpen = !kitOpen)}>Debug Kit ▾</button>
+    {#if kitOpen}
+      <div class="kit-panel" role="menu">
+        <button onclick={() => { kitOpen = false; dispatch('clear-all-bps'); }}>
+          Clear all breakpoints
+        </button>
+      </div>
+    {/if}
+  </div>
 </div>
 <PanzoomComp bind:this={pzComp} onclick={onZoomClick} disabled={!enableZoom}>
 {#await initialize() then _}
-  <!-- I don't know how to make this part accessible. PRs welcome! -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="graph" oncontextmenu={onContextMenu}>
+  <div class="graph" oncontextmenu={onContextMenu} role="region">
     {#await asyncRenderWrapper(
       codeAndOffset,
       {
@@ -529,7 +508,6 @@ const panAfterRender: Action = () => {
   </div>
 {/if}
 
-
 <style>
   .graph {
     display: flex;
@@ -570,11 +548,7 @@ const panAfterRender: Action = () => {
     filter: brightness(1.2);
   }
 
-
   :root {
-      /* We don't yet get the actual colors from the JetBrains IDEs,
-         so we fake them and default to just dark for now.
-       */
       --jetbrains-editor-background: #2B2D30;
       --jetbrains-editor-foreground: #dddddd;
       --jetbrains-color-scheme: dark;
@@ -588,9 +562,22 @@ const panAfterRender: Action = () => {
       color: var(--vscode-editor-foreground, var(--jetbrains-editor-foreground));
       color-scheme: var(--jetbrains-color-scheme);
       padding: 0.5em;
+
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font: inherit;
+      line-height: 1.3;
+  }
+  .editor-controls label {
+      font: inherit;
+      line-height: 1.3;
+      vertical-align: middle;
+  }
+  .editor-controls input[type="checkbox"] {
+      vertical-align: middle;
   }
 
-  /* Match the VSCode light/dark toggle for the checkboxes */
   :global(.vscode-light) .editor-controls {
       color-scheme: light;
   }
@@ -599,4 +586,48 @@ const panAfterRender: Action = () => {
       color-scheme: dark;
   }
 
+  .debug-kit {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    margin-left: 4px;
+  }
+  .kit-toggle {
+    font: inherit;
+    line-height: 1.3;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .kit-toggle:hover {
+    text-decoration: underline; 
+  }
+  .kit-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 10000;
+    background: var(--vscode-editor-background, #2b2d30);
+    color: var(--vscode-editor-foreground, #ddd);
+    border: 1px solid var(--vscode-editor-foreground, #555);
+    padding: 6px 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    min-width: 180px;
+  }
+  .kit-panel > button {
+    background: transparent;
+    color: inherit;
+    border: 0;
+    text-align: left;
+    padding: 4px 2px;
+    width: 100%;
+    cursor: pointer;
+  }
+  .kit-panel > button:hover {
+    filter: brightness(1.2);
+  }
 </style>

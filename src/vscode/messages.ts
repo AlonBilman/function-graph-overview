@@ -33,15 +33,16 @@ export type UpdateSettings = {
   colorList: ColorList;
 };
 
-export type MessageToWebview =
-  | UpdateCode
-  | UpdateSettings
-  | UpdateBreakpoints
-  | UpdateTempRunLine;
-export type MessageToVscode = NavigateTo | ToggleBreakpoint | RunUntil;
+export type ClearAllBreakpoints = {
+  tag: "clearAllBreakpoints";
+};
+
+
+export type MessageToWebview = UpdateCode | UpdateSettings | UpdateBreakpoints | UpdateTempRunLine;
+export type MessageToVscode = NavigateTo | ToggleBreakpoint | RunUntil | ClearAllBreakpoints;
 
 export type UpdateBreakpoints = {
-  tag: "updateBreakpoints";
+  tag: "updateBreakpoints"; 
   lines: number[];
 };
 
