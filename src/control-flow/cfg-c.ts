@@ -1,6 +1,7 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import treeSitterC from "../../parsers/tree-sitter-c.wasm?url";
-import { matchExistsIn } from "./block-matcher.ts";
+//import { matchExistsIn } from "./block-matcher.ts";
+import { tagCondNodeIfFuncCall } from "./common-patterns.ts";
 import type { BasicBlock, BuilderOptions, CFGBuilder } from "./cfg-defs";
 import {
   cStyleDoWhileProcessor,
@@ -74,8 +75,6 @@ const statementHandlers: StatementHandlers = {
     labeled_statement: processLabeledStatement,
     goto_statement: processGotoStatement,
     comment: processComment,
-    expression_statement: processExpressionStatement,
-    declaration: processDeclarationStatement,
   },
   default: defaultProcessStatement,
 } as const;
@@ -98,31 +97,9 @@ function defaultProcessStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
     syntax.startIndex,
   );
   ctx.link.syntaxToNode(syntax, newNode);
-  return { entry: newNode, exit: newNode };
-}
-
-function processExpressionStatement(
-  syntax: SyntaxNode,
-  ctx: Context,
-): BasicBlock {
-  const hasCall = matchExistsIn(syntax, "(call_expression) @call");
-  if (hasCall) {
-    const callNode = ctx.builder.addNode(
-      "FUNCTION_CALL",
-      syntax.text,
-      syntax.startIndex,
-    );
-    ctx.link.syntaxToNode(syntax, callNode);
-    return { entry: callNode, exit: callNode };
-  }
-  return defaultProcessStatement(syntax, ctx);
-}
-
-function processDeclarationStatement(
-  syntax: SyntaxNode,
-  ctx: Context,
-): BasicBlock {
-  return processExpressionStatement(syntax, ctx);
+  const bB = { entry: newNode, exit: newNode };
+  tagCondNodeIfFuncCall(syntax, bB, ctx);
+  return bB;
 }
 
 const caseTypes = new Set(["case_statement"]);

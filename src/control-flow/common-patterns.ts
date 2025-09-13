@@ -40,7 +40,7 @@ export function extractFunctionNamesAndLocation(
 }
 
 //Tags the condition node if it contains a function call.
-function tagCondNodeIfFuncCall(
+export function tagCondNodeIfFuncCall(
   condSyntax: SyntaxNode | undefined,
   condBlock: BasicBlock | null,
   ctx: Context,

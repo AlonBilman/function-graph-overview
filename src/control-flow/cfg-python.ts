@@ -50,7 +50,6 @@ const statementHandlers: StatementHandlers = {
     raise_statement: processRaiseStatement,
     block: processStatementSequence,
     assert_statement: processAssertStatement,
-    expression_statement: processExpressionStatement,
   },
   default: defaultProcessStatement,
 };
@@ -70,40 +69,6 @@ function defaultProcessStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
   const newNode = builder.addNode("STATEMENT", syntax.text, syntax.startIndex);
   ctx.link.syntaxToNode(syntax, newNode);
   return { entry: newNode, exit: newNode };
-}
-
-function processFunctionCallStatement(
-  syntax: SyntaxNode,
-  ctx: Context,
-): BasicBlock {
-  const hasFunctionCall = matchExistsIn(syntax, "(call) @call");
-  if (hasFunctionCall) {
-    const callNode = ctx.builder.addNode(
-      "FUNCTION_CALL",
-      syntax.text,
-      syntax.startIndex,
-    );
-    ctx.link.syntaxToNode(syntax, callNode);
-    return { entry: callNode, exit: callNode };
-  }
-  return defaultProcessStatement(syntax, ctx);
-}
-
-function processExpressionStatement(
-  syntax: SyntaxNode,
-  ctx: Context,
-): BasicBlock {
-  if (syntax.firstChild?.type === "call") {
-    const functionName = syntax.firstChild.childForFieldName("function")?.text;
-    if (!functionName) {
-      throw new Error("Missing callee in call expression!");
-    }
-    const callBlock = ctx.callProcessor?.(syntax, functionName, ctx);
-    if (callBlock) {
-      return callBlock;
-    }
-  }
-  return processFunctionCallStatement(syntax, ctx);
 }
 
 function processAssertStatement(
