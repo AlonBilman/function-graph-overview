@@ -12,7 +12,7 @@ import { memoizeFunction } from "./caching.ts";
 import { type RenderOptions, Renderer } from "./renderer.ts";
 import { type Parsers, initialize as initializeUtils } from "./utils";
 type CodeAndOffset = { code: string; offset: number; language: Language };
-import { extractFunctionNamesAndLocation } from "../control-flow/common-patterns";
+import { extractFunctionNamesAndLocation , functionCallCaptureQuery } from "../control-flow/common-patterns";
 import { renderBreakpointDots } from "../control-flow/overlay.ts";
 let parsers: Parsers;
 let graphviz: Graphviz;
@@ -294,9 +294,7 @@ function onZoomClick(
       functions =
         extractFunctionNamesAndLocation(
           syntaxNode,
-          ` 
-          (call_expression) @call
-      `,
+          functionCallCaptureQuery,
           "call",
         ) ?? [];
     }

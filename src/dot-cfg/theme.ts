@@ -65,7 +65,7 @@ const nodeStyles: Record<NodeClass, NodeAttributesObject> = {
   },
   functionCall: {
     shape: "box",
-    style: "filled,bold,dashed",
+    style: "filled,bold",
     class: "functionCall",
   },
 };

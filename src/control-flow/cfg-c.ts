@@ -1,7 +1,7 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import treeSitterC from "../../parsers/tree-sitter-c.wasm?url";
 //import { matchExistsIn } from "./block-matcher.ts";
-import { tagCondNodeIfFuncCall } from "./common-patterns.ts";
+import { tagNodeIfFuncCall } from "./common-patterns.ts";
 import type { BasicBlock, BuilderOptions, CFGBuilder } from "./cfg-defs";
 import {
   cStyleDoWhileProcessor,
@@ -97,9 +97,9 @@ function defaultProcessStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
     syntax.startIndex,
   );
   ctx.link.syntaxToNode(syntax, newNode);
-  const bB = { entry: newNode, exit: newNode };
-  tagCondNodeIfFuncCall(syntax, bB, ctx);
-  return bB;
+  const basicBlock = { entry: newNode, exit: newNode };
+  tagNodeIfFuncCall(syntax, basicBlock, ctx);
+  return basicBlock;
 }
 
 const caseTypes = new Set(["case_statement"]);
@@ -167,6 +167,9 @@ function processSwitchlike(switchSyntax: SyntaxNode, ctx: Context): BasicBlock {
       includeTo: true,
     });
   }
+  const cond = switchSyntax.childForFieldName("condition") ?? undefined;
+  const basicBlock = { entry: headNode, exit: headNode };
+  tagNodeIfFuncCall(cond, basicBlock, ctx);
 
-  return blockHandler.update({ entry: headNode, exit: mergeNode });
+  return blockHandler.update({ entry: basicBlock.entry, exit: mergeNode });
 }
