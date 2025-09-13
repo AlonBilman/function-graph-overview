@@ -295,53 +295,18 @@ function onZoomClick(
         extractFunctionNamesAndLocation(
           syntaxNode,
           ` 
-        (parenthesized_expression
-          (call_expression) @call) 
-
-        (parenthesized_expression
-          (binary_expression
-            (call_expression) @call))
-
-        (binary_expression
-          (call_expression) @call)
           (call_expression) @call
-  
-        (update_expression
-          (call_expression) @call)
-    
-        (assignment_expression
-          right: (call_expression) @call)
       `,
           "call",
         ) ?? [];
-      if (!functions.length) {
-        functions =
-          extractFunctionNamesAndLocation(
-            syntaxNode,
-            `
-        (call_expression) 
-          function: (identifier) @call
-        `,
-            "call",
-          ) ?? [];
-      }
     }
   }
-  if (target.classList.contains("functionCall")) {
     dispatch("node-clicked", {
       node: target.id,
       withControl: event.ctrlKey,
       offset: getNodeOffset(target.id) ?? undefined,
-      functionNamesAndLocations: functions,
+      functionNamesAndLocations: target.classList.contains("functionCall") ? functions : undefined,
     });
-  } else {
-    dispatch("node-clicked", {
-      node: target.id,
-      withControl: false,
-      offset: getNodeOffset(target.id) ?? undefined,
-      functionNamesAndLocations: functions,
-    });
-  }
 }
 
 // NEW: simple context menu state and handlers

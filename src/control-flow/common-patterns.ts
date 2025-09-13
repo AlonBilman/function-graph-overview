@@ -62,23 +62,7 @@ export function tagCondNodeIfFuncCall(
 
 //Only c Style for now.....
 const functionCallCaptureQuery = ` 
-  (parenthesized_expression
-    (call_expression) @call) 
-
-  (parenthesized_expression
-    (binary_expression
-      (call_expression) @call))
-
-  (binary_expression
-    (call_expression) @call)
-    
   (call_expression) @call
-  
-  (update_expression
-    (call_expression) @call)
-    
-  (assignment_expression
-    right: (call_expression) @call)
 `;
 
 export function cStyleIfProcessor(
