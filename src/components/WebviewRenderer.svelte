@@ -12,7 +12,7 @@ import { memoizeFunction } from "./caching.ts";
 import { type RenderOptions, Renderer } from "./renderer.ts";
 import { type Parsers, initialize as initializeUtils } from "./utils";
 type CodeAndOffset = { code: string; offset: number; language: Language };
-import { extractFunctionNamesAndLocation } from "../control-flow/common-patterns";
+import { extractFunctionNamesAndLocation , functionCallCaptureQuery } from "../control-flow/common-patterns";
 import { renderBreakpointDots } from "../control-flow/overlay.ts";
 let parsers: Parsers;
 let graphviz: Graphviz;
@@ -306,54 +306,17 @@ function onZoomClick(
       functions =
         extractFunctionNamesAndLocation(
           syntaxNode,
-          ` 
-        (parenthesized_expression
-          (call_expression) @call) 
-
-        (parenthesized_expression
-          (binary_expression
-            (call_expression) @call))
-
-        (binary_expression
-          (call_expression) @call)
-          (call_expression) @call
-  
-        (update_expression
-          (call_expression) @call)
-    
-        (assignment_expression
-          right: (call_expression) @call)
-      `,
+          functionCallCaptureQuery,
           "call",
         ) ?? [];
-      if (!functions.length) {
-        functions =
-          extractFunctionNamesAndLocation(
-            syntaxNode,
-            `
-        (call_expression) 
-          function: (identifier) @call
-        `,
-            "call",
-          ) ?? [];
-      }
     }
   }
-  if (target.classList.contains("functionCall")) {
     dispatch("node-clicked", {
       node: target.id,
       withControl: event.ctrlKey,
       offset: getNodeOffset(target.id) ?? undefined,
-      functionNamesAndLocations: functions,
+      functionNamesAndLocations: target.classList.contains("functionCall") ? functions : undefined,
     });
-  } else {
-    dispatch("node-clicked", {
-      node: target.id,
-      withControl: false,
-      offset: getNodeOffset(target.id) ?? undefined,
-      functionNamesAndLocations: functions,
-    });
-  }
 }
 
 let ctxMenu = $state<{

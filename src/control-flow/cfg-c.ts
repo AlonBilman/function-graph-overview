@@ -1,6 +1,7 @@
 import type { Node as SyntaxNode } from "web-tree-sitter";
 import treeSitterC from "../../parsers/tree-sitter-c.wasm?url";
-import { matchExistsIn } from "./block-matcher.ts";
+//import { matchExistsIn } from "./block-matcher.ts";
+import { tagNodeIfFuncCall } from "./common-patterns.ts";
 import type { BasicBlock, BuilderOptions, CFGBuilder } from "./cfg-defs";
 import {
   cStyleDoWhileProcessor,
@@ -21,12 +22,14 @@ import {
   type StatementHandlers,
 } from "./generic-cfg-builder.ts";
 import { treeSitterNoNullNodes } from "./hacks.ts";
+import { extractCapturedTextsByCaptureName } from "./query-utils.ts";
 import { buildSwitch, collectCases } from "./switch-utils.ts";
 
 export const cLanguageDefinition = {
   wasmPath: treeSitterC,
   createCFGBuilder: createCFGBuilder,
   functionNodeTypes: ["function_definition"],
+  extractFunctionName: extractCFunctionName,
 };
 
 function getChildFieldText(node: SyntaxNode, fieldName: string): string {
@@ -74,8 +77,6 @@ const statementHandlers: StatementHandlers = {
     labeled_statement: processLabeledStatement,
     goto_statement: processGotoStatement,
     comment: processComment,
-    expression_statement: processExpressionStatement,
-    declaration: processDeclarationStatement,
   },
   default: defaultProcessStatement,
 } as const;
@@ -98,31 +99,9 @@ function defaultProcessStatement(syntax: SyntaxNode, ctx: Context): BasicBlock {
     syntax.startIndex,
   );
   ctx.link.syntaxToNode(syntax, newNode);
-  return { entry: newNode, exit: newNode };
-}
-
-function processExpressionStatement(
-  syntax: SyntaxNode,
-  ctx: Context,
-): BasicBlock {
-  const hasCall = matchExistsIn(syntax, "(call_expression) @call");
-  if (hasCall) {
-    const callNode = ctx.builder.addNode(
-      "FUNCTION_CALL",
-      syntax.text,
-      syntax.startIndex,
-    );
-    ctx.link.syntaxToNode(syntax, callNode);
-    return { entry: callNode, exit: callNode };
-  }
-  return defaultProcessStatement(syntax, ctx);
-}
-
-function processDeclarationStatement(
-  syntax: SyntaxNode,
-  ctx: Context,
-): BasicBlock {
-  return processExpressionStatement(syntax, ctx);
+  const basicBlock = { entry: newNode, exit: newNode };
+  tagNodeIfFuncCall(syntax, basicBlock, ctx);
+  return basicBlock;
 }
 
 const caseTypes = new Set(["case_statement"]);
@@ -190,6 +169,45 @@ function processSwitchlike(switchSyntax: SyntaxNode, ctx: Context): BasicBlock {
       includeTo: true,
     });
   }
+  const cond = switchSyntax.childForFieldName("condition") ?? undefined;
+  const basicBlock = { entry: headNode, exit: headNode };
+  tagNodeIfFuncCall(cond, basicBlock, ctx);
 
-  return blockHandler.update({ entry: headNode, exit: mergeNode });
+  return blockHandler.update({ entry: basicBlock.entry, exit: mergeNode });
+}
+
+const functionQuery = {
+  functionDeclarator: `(function_declarator
+	  declarator:(identifier)@name)`,
+
+  captureName: "name",
+};
+
+function getFunctionDeclarator(funcDef: SyntaxNode): SyntaxNode | null {
+  const body = funcDef.childForFieldName("body");
+  const end = body ? body.startPosition : funcDef.endPosition;
+
+  const nodes = funcDef.descendantsOfType(
+    "function_declarator",
+    funcDef.startPosition,
+    end,
+  );
+
+  const declaratorNode = nodes.find((node) => {
+    const decl = node?.childForFieldName("declarator");
+    return decl?.type === "identifier";
+  });
+
+  return declaratorNode ?? null;
+}
+
+function extractCFunctionName(func: SyntaxNode): string | undefined {
+  const declarator = getFunctionDeclarator(func);
+  if (!declarator) return undefined;
+
+  return extractCapturedTextsByCaptureName(
+    declarator,
+    functionQuery.functionDeclarator,
+    functionQuery.captureName,
+  )[0];
 }

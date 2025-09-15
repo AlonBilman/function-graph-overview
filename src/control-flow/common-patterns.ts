@@ -40,45 +40,27 @@ export function removeDuplicateCalls(
 }
 
 //Tags the condition node if it contains a function call.
-function tagCondNodeIfFuncCall(
-  condSyntax: SyntaxNode | undefined,
-  condBlock: BasicBlock | null,
+export function tagNodeIfFuncCall(
+  node: SyntaxNode | undefined,
+  basicBlock: BasicBlock | null,
   ctx: Context,
 ) {
   const hasFunctionCall =
-    condSyntax &&
+    node &&
     (
       extractFunctionNamesAndLocation(
-        condSyntax,
+        node,
         functionCallCaptureQuery,
         "call",
       ) ?? []
     ).length > 0;
-  if (hasFunctionCall && condBlock) {
-    // Paint the node to indicate it contains a function call.
-    ctx.builder.setDefault(condBlock.entry, { hasFunctionCall: true });
+  if (hasFunctionCall && basicBlock) {
+    ctx.builder.setDefault(basicBlock.entry, { hasFunctionCall: true });
   }
 }
 
-//Only c Style for now.....
-const functionCallCaptureQuery = ` 
-  (parenthesized_expression
-    (call_expression) @call) 
-
-  (parenthesized_expression
-    (binary_expression
-      (call_expression) @call))
-
-  (binary_expression
-    (call_expression) @call)
-    
+export const functionCallCaptureQuery = ` 
   (call_expression) @call
-  
-  (update_expression
-    (call_expression) @call)
-    
-  (assignment_expression
-    right: (call_expression) @call)
 `;
 
 export function cStyleIfProcessor(
@@ -131,20 +113,7 @@ export function cStyleIfProcessor(
       const block = blocks[i];
       if (block) {
         const condNode = allIfs[i]?.requireSyntax("cond");
-        if (
-          condNode &&
-          (
-            extractFunctionNamesAndLocation(
-              condNode,
-              functionCallCaptureQuery,
-              "call",
-            ) ?? []
-          ).length > 0
-        ) {
-          ctx.builder.setDefault(block.condBlock.entry, {
-            hasFunctionCall: true,
-          });
-        }
+        tagNodeIfFuncCall(condNode, block.condBlock, ctx);
       }
     }
     if (firstBlock?.condBlock.entry)
@@ -281,9 +250,9 @@ export function cStyleForStatementProcessor(
     const updateBlock = match.getBlock(updateSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
-    tagCondNodeIfFuncCall(initSyntax, initBlock, ctx);
-    tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
-    tagCondNodeIfFuncCall(updateSyntax, updateBlock, ctx);
+    tagNodeIfFuncCall(initSyntax, initBlock, ctx);
+    tagNodeIfFuncCall(condSyntax, condBlock, ctx);
+    tagNodeIfFuncCall(updateSyntax, updateBlock, ctx);
 
     const entryNode = ctx.builder.addNode(
       "EMPTY",
@@ -418,7 +387,7 @@ export function cStyleWhileProcessor(): (
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
-    tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
+    tagNodeIfFuncCall(condSyntax, condBlock, ctx);
 
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",
@@ -470,7 +439,7 @@ export function cStyleDoWhileProcessor(): (
     const condBlock = match.getBlock(condSyntax);
     const bodyBlock = match.getBlock(bodySyntax);
 
-    tagCondNodeIfFuncCall(condSyntax, condBlock, ctx);
+    tagNodeIfFuncCall(condSyntax, condBlock, ctx);
 
     const exitNode = ctx.builder.addNode(
       "FOR_EXIT",

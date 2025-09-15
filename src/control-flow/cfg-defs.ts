@@ -34,8 +34,7 @@ export type NodeType =
   | "SWITCH_CONDITION"
   | "SWITCH_MERGE"
   | "CASE_CONDITION"
-  | "EXIT_PROCESS"
-  | "FUNCTION_CALL";
+  | "EXIT_PROCESS";
 
 export type EdgeType = "regular" | "consequence" | "alternative" | "exception";
 
